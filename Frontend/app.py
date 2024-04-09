@@ -37,3 +37,5 @@ if st.button('Submit'):
 # for 2 hours with stable vitals, and received instructions for pain management, activity restrictions,
 # and a follow-up on 04/05/2024. Discharge on 03/23/2024 included guidelines for pain
 # management, wound care, infection monitoring, and a scheduled follow-up with Dr. Kumar.
+
+#For patient Dev Jain, compare his creat levels to past records
