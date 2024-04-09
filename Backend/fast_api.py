@@ -10,6 +10,7 @@ import uuid
 app=FastAPI()
 
 health_records_directory='/home/blu/ai/smart_ehr/health_records'
+health_records_lookup='/home/blu/ai/smart_ehr/health_records/ehr_lookup.json'
 
 async def intent_classifier(query):
     prompt = f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a Doctor, where he may ask you to create a medical record for a patient, read existing medical records for a patient, update the medical record for a patient or delete the medical records for a patient.
@@ -25,6 +26,10 @@ async def intent_classifier(query):
     The above list is not exhaustive and you need to add content to the relevant section based on how it appears in the query. 
     Don't mention a Heading or Subheading in the output, if its information isnt given in the query.
     Give the intent of the query in the first line, as Intent: <intent of the query> and then the medical record from a newline.
+    
+    After the medical record give a summary of the medical record in MAX 40 words as Summary: <summary>, mentioning key 
+    details like Personal Information(Name,Age,Gender), Surgical Procedure and Medical History. Dont mention the headings in the 
+    summary. This summary should contain only the key details and should be a single string on a single line.  
     This is the query given by the doctor: 
     {query}\n'''
     # Use your OpenAI API key here
@@ -59,31 +64,53 @@ async def intent_classifier(query):
 
 async def extract_intent_and_content(output:str):
     # Regex to find the Intent
-    intent_pattern = r"Intent: (\w+)"
-    intent_match = re.search(intent_pattern, output)
+    # Extract Intent
+    intent_match = re.search(r"^Intent: (\w+)", output, re.MULTILINE)
     if intent_match:
         intent = intent_match.group(1)
     else:
-        intent = "No intent found"
+        intent = None
     if intent.lower() == 'create':
-        # Regex to capture everything from "Patient Information" to the end
-        patient_info_pattern = r"(Patient Information:.+)"
-        patient_info_match = re.search(patient_info_pattern, output, re.DOTALL)  # re.DOTALL makes '.' match newlines as well
-        if patient_info_match:
-            patient_info = patient_info_match.group(1)
-            #Send patient info to file
-            
+        # Extract Medical Report
+        # We use the lookahead assertion (?=Summary:) to stop at the "Summary" section
+        report_match = re.search(r"^Patient Information:(.+?)(?=^Summary: )", output, re.DOTALL | re.MULTILINE)
+        if report_match:
+            report = report_match.group(1).strip()
             if not os.path.exists(health_records_directory):
                 os.makedirs(health_records_directory)
-            file_name=f'{uuid.uuid4().hex}.txt'
-            with open(f'{health_records_directory}/{file_name}','w') as file:
-                file.write(patient_info)
+            file_id=uuid.uuid4().hex
+            file_name=f'{file_id}.txt'
+            file_path=os.path.join(health_records_directory,file_name)
+            with open(file_path,'w') as file:
+                file.write(report)
                 file.write('\n')
-
         else:
-            patient_info = "No patient information found"
+            report = None
+        
+        # Extract Summary
+        summary_match = re.search(r"^Summary: (.+)$", output, re.MULTILINE)
+        if summary_match:
+            summary = summary_match.group(1)
+        else:
+            summary = None
+        
+        if os.path.exists(health_records_lookup):
+            with open(health_records_lookup,'r') as lookup_file:
+                lookup_data=json.load(lookup_file)
+        else:
+            lookup_data={}
+        
+        lookup_data[file_id] = {
+            "file_path": file_path,
+            "summary": summary
+        }
+        with open(health_records_lookup,'w') as lookup_file:
+            json.dump(lookup_data, lookup_file, indent=4)
+            
+            
+
     #Instead of outputting intent and patient info a message should come out like created record for patient id
-    return intent,patient_info
+    return intent,file_id,summary
 
 @app.post("/process_request/")
 async def process_request(request: Request):
@@ -92,13 +119,12 @@ async def process_request(request: Request):
     print(query)
     #Intent classification here
     output=await intent_classifier(query)
-    print(output)
     #Heavy regex to be employed here- separate out the intent and the following text
-    intent,content= await extract_intent_and_content(output)
-    print(intent)
-    print(content)
-    #NLP action here
-    return{"message":"query recieved"}
+    intent,file_id,summary= await extract_intent_and_content(output)
+    if intent.lower()=='create':
+        return{"intent":f"{intent}","Generated_unique_id":f"{file_id}","Patient Summary":f"{summary}"}
+    else:
+        return{"intent":"Yet to be defined"}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
