@@ -1,19 +1,17 @@
 from fastapi import FastAPI,Request
 import uvicorn
-import spacy
 import aiohttp
 import openai
 import json
 import os
 import re
+import uuid
 
 app=FastAPI()
-nlp = spacy.load("en_core_web_sm")
 
 health_records_directory='/home/blu/ai/smart_ehr/health_records'
 
 async def intent_classifier(query):
-    # prompt = f"Classify the intent of the following user query: '{query}'\n\nPossible intents are Create, Read, Update, Delete.Identify the intent which matches the query and give the intent as output."
     prompt = f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a Doctor, where he may ask you to create a medical record for a patient, read existing medical records for a patient, update the medical record for a patient or delete the medical records for a patient.
     Your first task is to classify the intent of the query into Create, Read , Update or Delete.
     If intent of the query is Create, you need to create a Medical record of the patient based on the information provided by the doctor, and structure it into a proper format with headings and subheadings.
@@ -77,7 +75,7 @@ async def extract_intent_and_content(output:str):
             
             if not os.path.exists(health_records_directory):
                 os.makedirs(health_records_directory)
-            file_name='abc.txt'
+            file_name=f'{uuid.uuid4().hex}.txt'
             with open(f'{health_records_directory}/{file_name}','w') as file:
                 file.write(patient_info)
                 file.write('\n')
