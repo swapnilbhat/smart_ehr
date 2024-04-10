@@ -13,39 +13,6 @@ health_records_directory='/home/blu/ai/smart_ehr/health_records'
 health_records_lookup='/home/blu/ai/smart_ehr/health_records/ehr_lookup.json'
 
 async def gpt_processor(prompt,max_tokens):
-    # prompt = f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a Doctor, where he may ask you to create a medical record for a patient, read existing medical records for a patient, update the medical record for a patient or delete the medical records for a patient.
-    # Your first task is to classify the intent of the query into Create, Read , Update or Delete.
-    # In the first line of your output, you must write the intent clearly as
-    # Intent: <intent of the query>
-    # If intent of the query is Create: 
-    # you need to create a Medical record of the patient based on the information provided by the 
-    # doctor, and structure it into a proper format with headings and subheadings.
-    # Examples of headings and its subheadings:
-    # Heading: Patient Information ; Subheadings: Name, Age, Gender, Date of Birth, Address, Phone Number, Blood Group, etc
-    # Heading: Medical History
-    # Heading: Surgical Procedure; Subheadings: Procedure Name, Date of Surgery, Surgeon, Procedure Details, etc
-    # Heading: Post Operative Care
-    # Heading: Discharge Instructions
-    # Heading: Signature     
-    # The above list is not exhaustive and you need to add content to the relevant section based on how it appears in the query. 
-    # Don't mention a Heading or Subheading in the output, if its information isnt given in the query.
-    # You need to write the medical record from a newline, after the intent
-    
-    # After the medical record give a summary of the medical record in MAX 40 words as Summary: <summary>, mentioning key 
-    # details like Personal Information(Name,Age,Gender), Surgical Procedure and Medical History. Dont mention the headings in the 
-    # summary. This summary should contain only the key details and should be a single string on a single line. 
-    
-    # If the intent of the query is Read:
-    # The doctor wants you to first search for a patient based on a specifc attribute(like Name, Age, Surgical Procedure,etc) in the 
-    # Electronic Health Records, and retrive his data. After retrieval the doctor wants you to perfom a task on the retrieved record.
-    # You need to write the output in the following format:
-    # Attribute:<search attribute mentioned by the doctor>
-    # Task: <task required to be perfomed on the data>
-    
-    # You must follow the above instructions carefully and excute Intent specific instructions
-    # This is the query given by the doctor: 
-    # {query}\n'''
-    # Use your OpenAI API key here
     
     openai.api_key = os.getenv('OPENAI_API_KEY', 'default-key')
 
@@ -165,7 +132,22 @@ async def extract_intent_and_content(query:str,intent:str):
             task = None
         
         return (attribute_name,attribute_value,task)     
-        
+
+async def search_and_load_summary(attribute_value:str):
+    #Search through existing record summaries and find matches(one or more)
+     if os.path.exists(health_records_lookup):
+         with open(health_records_lookup,'r') as lookup_file:
+             lookup_data=json.load(lookup_file)
+     else:
+         return None
+     #search for matching summaries
+     matching_ids = [uid for uid, info in lookup_data.items() if attribute_value.lower() in info['summary'].lower()]
+     #load the records
+     records=[]
+     for uid in matching_ids:
+         with open(lookup_data[uid]['file_path'],'r') as file:
+             records.append(file.read())
+     return records
     
 @app.post("/process_request/")
 async def process_request(request: Request):
@@ -192,8 +174,15 @@ async def process_request(request: Request):
     #Heavy regex to be employed here- separate out the intent and the following text
     if intent.lower()=='create':
         return{"intent":f"{intent}","Generated_unique_id":f"{output_task[0]}","Patient Summary":f"{output_task[1]}"}
-    else:
+    elif intent.lower()=='read':
+        records=await search_and_load_summary(output_task[1])
+        if records:
+            print(records)       
+        else:
+            print('No matching records found')
         return{"attribute name":f"{output_task[0]}","attribute value":f"{output_task[1]}","task":f"{output_task[2]}"}
+    else:
+        return{'message':'no intents match'}
     
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
