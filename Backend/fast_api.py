@@ -254,14 +254,17 @@ async def save_report(request: Request):
                 for _, value in lookup_data.items(): #Is this O(n)?
                     if 'patient_id' in value and value['patient_id'] == patient_id:
                         file_path= value['file_path'] #overwrite existing file path, and dont change the summary
-                        entries=value['entries'] #no. of entries to the same record- no updations means a single entry
+                        value['entries']=value.get('entries', 1) + 1 #no. of entries to the same record- no updations means a single
                         patient_id_exists_in_records=True
+                        break
+            with open(health_records_lookup, 'w') as lookup_file:
+                json.dump(lookup_data, lookup_file, indent=4)
     else:
         patient_id=None
         return {'message':'Patient id is not provided'}
     
     if patient_id_exists_in_records:
-        pass
+        print('patient record already exists')
     else:
         file_name = file_path.split('/')[-1]
         # Now remove the extension '.txt'

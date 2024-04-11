@@ -34,7 +34,10 @@ def process_request():
 def save_report():
     response = requests.post(f"{FASTAPI_ENDPOINT}/save_report/", json={'report': st.session_state['edited_report'], 'file_path':  st.session_state['file_path']})
     if response.status_code == 200:
-        st.success("Report saved successfully")
+        if response.json():
+            st.warning('Patient id not provided')
+        else:
+            st.success("Report saved successfully")
     else:
         st.error("Failed to save the report")
     st.session_state['report_generated'] = False
