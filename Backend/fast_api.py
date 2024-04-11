@@ -112,7 +112,8 @@ async def extract_intent_and_content(query:str,intent:str):
         }
         with open(health_records_lookup,'w') as lookup_file:
             json.dump(lookup_data, lookup_file, indent=4)
-        return (file_id,summary)
+        return (file_path,report)
+    
     elif intent.lower()=='read':
         read_prompt=f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a 
          Doctor, where you are asked to read a medical record for a patient.
@@ -204,7 +205,9 @@ async def process_request(request: Request):
     
     #Heavy regex to be employed here- separate out the intent and the following text
     if intent.lower()=='create':
-        return{"intent":f"{intent}","Generated_unique_id":f"{output_task[0]}","Patient Summary":f"{output_task[1]}"}
+        #send the report to streamlit for the user to edit
+        return {"Intent": intent,"Generated Report": output_task[1],"File Path": output_task[0]}
+        #return{"intent":f"{intent}","Generated_unique_id":f"{output_task[0]}","Patient Summary":f"{output_task[1]}"}
     elif intent.lower()=='read':
         records=await search_and_load_summary(output_task[1])
         if records:

@@ -21,13 +21,20 @@ def process_request():
     else:
         st.error("Failed to recieve response from FASTAPI")
         return []
+
+def save_report():
+    st.write('Report saved')
     
 input_text=st.text_area("Input: ",key="input")
 
 if st.button('Submit'):
     output=process_request()
     if output:
-        st.write(output)
+        st.markdown("<br>",unsafe_allow_html=True)
+        edited_report=st.text_area("Review and Edit Report:",value=output["Generated Report"],key="edited_report", height=600)
+        st.session_state['file_path']=output["File Path"]
+        if st.button('Save Report'):
+            save_report()
 
 # Create a concise medical report for Arjun Patel, a 45-year-old male, who underwent a
 # laparoscopic hernia repair on 03/22/2024 for a right inguinal hernia. The surgery, led by Dr. Anil
@@ -40,7 +47,7 @@ if st.button('Submit'):
 
 #For patient Dev Jain, compare his creat levels to past records
 
-# John ,40 years old male came with complaints of pain in the epigastric region and
+# John ,id:fhgj23, 40 years old male came with complaints of pain in the epigastric region and
 # right hypochondrium since 2-3 months.
 # Since 1-2 weeks, the intensity and the frequency of pain increased such that pt had
 # to take iv analgesics.
