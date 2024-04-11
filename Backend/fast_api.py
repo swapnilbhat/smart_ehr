@@ -44,18 +44,23 @@ async def gpt_processor(prompt,max_tokens):
 
 async def extract_intent_and_content(query:str,intent:str):
     if intent.lower() == 'create':
+        date_and_time=3
         create_prompt=f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a 
          Doctor, where you are asked to create a medical record for a patient.
     You need to create a Medical record of the patient based on the information provided by the 
      doctor, and structure it into a proper format with headings and subheadings.
     Examples of headings and its subheadings:
-    Heading: Patient Information ; Subheadings: Name, Age, Gender, Date of Birth, Address, Phone Number, Blood Group, etc
+    Heading: Current Date and Time :{date_and_time}
+    Heading: Patient Information ; Subheadings: Patient id,Name, Age, Gender, Date of Birth, Address, Phone Number, Blood Group, etc
+    Heading: General Information
     Heading: Medical History
     Heading: Surgical Procedure; Subheadings: Procedure Name, Date of Surgery, Surgeon, Procedure Details, etc
+    Heading: Test conducted and results
     Heading: Post Operative Care
     Heading: Discharge Instructions
     Heading: Signature     
-    The above list is not exhaustive and you need to add content to the relevant section based on how it appears in the query. 
+    The above list is not exhaustive and you can create Headings on your own to group the text.You must add content under the relevant 
+    heading based on how it appears in the query. 
     Don't mention a Heading or Subheading in the output, if its information isnt given in the query.
     You must give the medical record for the patient as output
     
@@ -64,7 +69,7 @@ async def extract_intent_and_content(query:str,intent:str):
     summary. This summary should contain only the key details and should be a single string on a single line.  
     This is the query given by the doctor: 
     {query}\n'''
-        output=await gpt_processor(create_prompt,300)
+        output=await gpt_processor(create_prompt,400)
         # Extract Medical Report
         # We use the lookahead assertion (?=Summary:) to stop at the "Summary" section
         report_match = re.search(r"^Patient Information:(.+?)(?=^Summary: )", output, re.DOTALL | re.MULTILINE)
