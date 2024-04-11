@@ -25,6 +25,7 @@ def process_request():
         st.session_state['report_generated'] = True
         st.session_state['report_content'] = response_data.get('Generated Report', '')
         st.session_state['file_path'] = response_data.get('File Path', '')
+        st.session_state['patient_id_exists']=response_data.get('Patient id exists',False)
         # return response_data
     else:
         st.error("Failed to recieve response from FASTAPI")
@@ -46,6 +47,8 @@ if st.button('Submit'):
 
 if st.session_state['report_generated']:
     edited_report = st.text_area("Review and Edit Report:", value=st.session_state['report_content'], height=600, key='edited_report')
+    if not st.session_state.get('patient_id_exists', True):  # Default to True to avoid showing error on first load
+        st.warning("Please ensure a Patient ID is included in the report.")
     if st.button('Save Report',on_click=save_report):
         pass
         
@@ -61,7 +64,7 @@ if st.session_state['report_generated']:
 
 #For patient Dev Jain, compare his creat levels to past records
 
-# John ,id:fhgj23, 40 years old male came with complaints of pain in the epigastric region and
+# John ,patient id:fhgj23, 40 years old male came with complaints of pain in the epigastric region and
 # right hypochondrium since 2-3 months.
 # Since 1-2 weeks, the intensity and the frequency of pain increased such that pt had
 # to take iv analgesics.

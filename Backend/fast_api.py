@@ -6,6 +6,8 @@ import json
 import os
 import re
 import uuid
+import time
+import datetime
 
 app=FastAPI()
 
@@ -61,24 +63,25 @@ async def extract_intent_and_content(query:str,intent:str):
     heading based on how it appears in the query. 
     You must not mention a Heading or Subheading in the output, if its information isnt given in the query.
     You must clearly mention numerical results of the test, and you must structure the report chronologically. 
-    You must give the medical record for the patient as output
-    
-    After the medical record give a summary of the medical record in MAX 40 words as Summary: <summary>, mentioning key 
-    details like Personal Information(Name,Age,Gender), Surgical Procedure and Medical History. Dont mention the headings in the 
-    summary. This summary should contain only the key details and should be a single string on a single line.  
+    You must give the medical record for the patient as output  
     This is the query given by the doctor: 
     {query}\n'''
         output=await gpt_processor(create_prompt,650)
+    #     After the medical record give a summary of the medical record in MAX 40 words as Summary: <summary>, mentioning key 
+    # details like Personal Information(Name,Age,Gender), Surgical Procedure and Medical History. Dont mention the headings in the 
+    # summary. This summary should contain only the key details and should be a single string on a single line.
         #print(output)
-        # Extract Medical Report
-        patient_id_match = re.search(r"Patient id: (.+)$", output,re.MULTILINE)
+        # # Extract Medical Report
+        patient_id_exists=False
+        patient_id_match = re.search(r"Patient id: (.+)$", output,re.IGNORECASE|re.MULTILINE)
         if patient_id_match:
             patient_id=patient_id_match.group(1)
             print('patient_id',patient_id)
+            patient_id_exists=True
         else:
             patient_id=None
         # We use the lookahead assertion (?=Summary:) to stop at the "Summary" section
-        report_match = re.search(r"^Patient Information:(.+?)(?=^Summary: )", output, re.DOTALL | re.MULTILINE)
+        report_match = re.search(r"^Patient Information:(.+)$", output, re.DOTALL | re.MULTILINE)
         if report_match:
             report = report_match.group(1).strip()
             if not os.path.exists(health_records_directory):
@@ -89,27 +92,28 @@ async def extract_intent_and_content(query:str,intent:str):
         else:
             report = None
         
-        # Extract Summary
-        summary_match = re.search(r"^Summary: (.+)$", output, re.MULTILINE)
-        if summary_match:
-            summary = summary_match.group(1)
-        else:
-            summary = None
+        # # Extract Summary
+        # summary_match = re.search(r"^Summary: (.+)$", output, re.MULTILINE)
+        # if summary_match:
+        #     summary = summary_match.group(1)
+        # else:
+        #     summary = None
         
-        if os.path.exists(health_records_lookup):
-            with open(health_records_lookup,'r') as lookup_file:
-                lookup_data=json.load(lookup_file)
-        else:
-            lookup_data={}
+        # if os.path.exists(health_records_lookup):
+        #     with open(health_records_lookup,'r') as lookup_file:
+        #         lookup_data=json.load(lookup_file)
+        # else:
+        #     lookup_data={}
         
-        lookup_data[file_id] = {
-            "file_path": file_path,
-            "patient_id":patient_id,
-            "summary": summary
-        }
-        with open(health_records_lookup,'w') as lookup_file:
-            json.dump(lookup_data, lookup_file, indent=4)
-        return (file_path,report)
+        # lookup_data[file_id] = {
+        #     "file_path": file_path,
+        #     "patient_id":patient_id,
+        #     "summary": summary
+        # }
+        # with open(health_records_lookup,'w') as lookup_file:
+        #     json.dump(lookup_data, lookup_file, indent=4)
+        print(patient_id_exists)
+        return (file_path,report,patient_id_exists)
     
     elif intent.lower()=='read':
         read_prompt=f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a 
@@ -143,6 +147,21 @@ async def extract_intent_and_content(query:str,intent:str):
         
         return (attribute_name,attribute_value,task)     
 
+async def generate_summary(report:str):
+    summary_prompt = f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be provided with the medical record of a patient as input, and you must generate a summary of that medical record as output.
+    The summary should be given as Summary:<summary>, in Maximum 40 words. You must not exceed this word limit.
+    The summary must mention key details like Personal Information(Name,Age,Gender), Surgical Procedure and Medical History. This summary should contain only the key details and should be a single string on a single line.
+    The medical report of the patient:
+    {report}'''
+    output=await gpt_processor(summary_prompt,300)
+    summary_match = re.search(r"^Summary: (.+)$", output, re.MULTILINE)
+    if summary_match:
+        summary = summary_match.group(1)
+    else:
+        summary = None
+    
+    return summary
+    
 async def search_and_load_summary(attribute_value:str):
     #Search through existing record summaries and find matches(one or more)
      if os.path.exists(health_records_lookup):
@@ -203,7 +222,7 @@ async def process_request(request: Request):
     #Heavy regex to be employed here- separate out the intent and the following text
     if intent.lower()=='create':
         #send the report to streamlit for the user to edit
-        return {"Intent": intent,"Generated Report": output_task[1],"File Path": output_task[0]}
+        return {"Intent": intent,"Generated Report": output_task[1],"File Path": output_task[0],"Patient id exists":output_task[2]}
         #return{"intent":f"{intent}","Generated_unique_id":f"{output_task[0]}","Patient Summary":f"{output_task[1]}"}
     elif intent.lower()=='read':
         records=await search_and_load_summary(output_task[1])
@@ -222,10 +241,58 @@ async def save_report(request: Request):
     data=await request.json()
     report=data['report']
     file_path=data['file_path']
-    with open(file_path,'w') as file:
-        file.write(report)
-        file.write('\n')
-    print('report saved')
+    #Patient id will be provided-no case where it wont be there
+    #Read the report and find patient id
+    patient_id_exists_in_records=False
+    patient_id_match = re.search(r"Patient id: (.+)$", report,re.IGNORECASE|re.MULTILINE)
+    if patient_id_match:
+        patient_id=patient_id_match.group(1)
+        print('patient_id',patient_id)
+        if os.path.exists(health_records_lookup):
+            with open(health_records_lookup,'r') as lookup_file:
+                lookup_data=json.load(lookup_file)
+                for _, value in lookup_data.items(): #Is this O(n)?
+                    if 'patient_id' in value and value['patient_id'] == patient_id:
+                        file_path= value['file_path'] #overwrite existing file path, and dont change the summary
+                        entries=value['entries'] #no. of entries to the same record- no updations means a single entry
+                        patient_id_exists_in_records=True
+    else:
+        patient_id=None
+        return {'message':'Patient id is not provided'}
+    
+    if patient_id_exists_in_records:
+        pass
+    else:
+        file_name = file_path.split('/')[-1]
+        # Now remove the extension '.txt'
+        file_id = file_name.split('.')[0] #required for json
+        #Get the summary for the record
+        summary=await generate_summary(report)
+        #write to file and to the ehr lookup
+        #current date and time
+        now = datetime.datetime.now()
+        date_format = now.strftime("%d/%m/%Y")
+        time_format = now.strftime("%H:%M")
+        with open(file_path,'w') as file:
+            file.write(f'Record Entry: {date_format} {time_format}\n\n')
+            file.write(report)
+            file.write('\n')
+        print('report saved')
+
+        if os.path.exists(health_records_lookup):
+            with open(health_records_lookup,'r') as lookup_file:
+                lookup_data=json.load(lookup_file)
+        else:
+            lookup_data={}
+        
+        lookup_data[file_id] = {
+            "file_path": file_path,
+            "patient_id":patient_id,
+             "entries":1,
+             "summary": summary
+        }
+        with open(health_records_lookup,'w') as lookup_file:
+            json.dump(lookup_data, lookup_file, indent=4)    
   
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
