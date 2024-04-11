@@ -148,6 +148,25 @@ async def search_and_load_summary(attribute_value:str):
          with open(lookup_data[uid]['file_path'],'r') as file:
              records.append(file.read())
      return records
+
+async def execute_task_on_records(record, task):
+    task_prompt = f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a task by a 
+         Doctor, the task is to be executed on a patient health record which will be provided. You must perform the task only in the context of the patient health record, and should provide provide the output, on a newline as Output:<output of the task>.
+         The length of the output must not exceed 100 words.
+    Examples of the task:
+        read the medicines prescribed to the patient, tell what were the blood sugar levels of the patient,etc.
+        In case the context does not have sufficient or relevant information. Your Output must be "The health record does not contain the necessary information."
+    The medical record for the patient is as follows:\n{record}\nBased on this record, {task}\n
+    Write the output of the task.
+    '''
+    output=await gpt_processor(task_prompt,300)
+    output_search=re.search("^Output: (.+)$",output, re.MULTILINE)
+    if output_search:
+        output = output_search.group(1)
+    else:
+        output_search = None
+    return output
+    
     
 @app.post("/process_request/")
 async def process_request(request: Request):
@@ -177,7 +196,9 @@ async def process_request(request: Request):
     elif intent.lower()=='read':
         records=await search_and_load_summary(output_task[1])
         if records:
-            print(records)       
+            #print(records)
+            result=await execute_task_on_records(records[0],output_task[2])   
+            print(result)
         else:
             print('No matching records found')
         return{"attribute name":f"{output_task[0]}","attribute value":f"{output_task[1]}","task":f"{output_task[2]}"}
