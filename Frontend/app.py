@@ -11,8 +11,8 @@ st.markdown(f"<h3>Responds with a specific EHR message</h3>", unsafe_allow_html=
 
 st.markdown("<br><br><br>",unsafe_allow_html=True)
 
-def print():
-    st.write(st.session_state.input)
+if 'input' not in st.session_state:
+    st.session_state['input'] = ""
     
 def process_request():
     response=requests.post(FASTAPI_ENDPOINT,json={'query':st.session_state.input})
@@ -22,11 +22,12 @@ def process_request():
         st.error("Failed to recieve response from FASTAPI")
         return []
     
-input=st.text_input("Input: ",key="input")
+input_text=st.text_input("Input: ",key="input")
 
-if input:
+if st.button('Submit'):
     output=process_request()
-    st.write(output)
+    if output:
+        st.write(output)
 
 # Create a concise medical report for Arjun Patel, a 45-year-old male, who underwent a
 # laparoscopic hernia repair on 03/22/2024 for a right inguinal hernia. The surgery, led by Dr. Anil
@@ -36,3 +37,5 @@ if input:
 # for 2 hours with stable vitals, and received instructions for pain management, activity restrictions,
 # and a follow-up on 04/05/2024. Discharge on 03/23/2024 included guidelines for pain
 # management, wound care, infection monitoring, and a scheduled follow-up with Dr. Kumar.
+
+#For patient Dev Jain, compare his creat levels to past records
