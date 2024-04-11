@@ -69,8 +69,14 @@ async def extract_intent_and_content(query:str,intent:str):
     This is the query given by the doctor: 
     {query}\n'''
         output=await gpt_processor(create_prompt,650)
-        print(output)
+        #print(output)
         # Extract Medical Report
+        patient_id_match = re.search(r"Patient id: (.+)$", output,re.MULTILINE)
+        if patient_id_match:
+            patient_id=patient_id_match.group(1)
+            print('patient_id',patient_id)
+        else:
+            patient_id=None
         # We use the lookahead assertion (?=Summary:) to stop at the "Summary" section
         report_match = re.search(r"^Patient Information:(.+?)(?=^Summary: )", output, re.DOTALL | re.MULTILINE)
         if report_match:
@@ -101,6 +107,7 @@ async def extract_intent_and_content(query:str,intent:str):
         
         lookup_data[file_id] = {
             "file_path": file_path,
+            "patient_id":patient_id,
             "summary": summary
         }
         with open(health_records_lookup,'w') as lookup_file:
