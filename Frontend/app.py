@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 
-FASTAPI_ENDPOINT = "http://localhost:8000/process_request/"
+FASTAPI_ENDPOINT = "http://localhost:8000"
 
 st.set_page_config(page_title="EHR Assistant", page_icon="🔍", initial_sidebar_state="collapsed")
 
@@ -13,28 +13,42 @@ st.markdown("<br><br><br>",unsafe_allow_html=True)
 
 if 'input' not in st.session_state:
     st.session_state['input'] = ""
+if 'report_generated' not in st.session_state:
+    st.session_state['report_generated'] = False
+if 'report_content' not in st.session_state:
+    st.session_state['report_content'] = ""
     
 def process_request():
-    response=requests.post(FASTAPI_ENDPOINT,json={'query':st.session_state.input})
+    response=requests.post(f'{FASTAPI_ENDPOINT}/process_request/',json={'query':st.session_state.input})
     if response.status_code==200:
-        return response.json()
+        response_data = response.json()
+        st.session_state['report_generated'] = True
+        st.session_state['report_content'] = response_data.get('Generated Report', '')
+        st.session_state['file_path'] = response_data.get('File Path', '')
+        # return response_data
     else:
         st.error("Failed to recieve response from FASTAPI")
         return []
 
 def save_report():
-    st.write('Report saved')
+    response = requests.post(f"{FASTAPI_ENDPOINT}/save_report/", json={'report': st.session_state['edited_report'], 'file_path':  st.session_state['file_path']})
+    if response.status_code == 200:
+        st.success("Report saved successfully")
+    else:
+        st.error("Failed to save the report")
+    st.session_state['report_generated'] = False
+    st.session_state['report_content'] = ""
     
 input_text=st.text_area("Input: ",key="input")
 
 if st.button('Submit'):
-    output=process_request()
-    if output:
-        st.markdown("<br>",unsafe_allow_html=True)
-        edited_report=st.text_area("Review and Edit Report:",value=output["Generated Report"],key="edited_report", height=600)
-        st.session_state['file_path']=output["File Path"]
-        if st.button('Save Report'):
-            save_report()
+    process_request()
+
+if st.session_state['report_generated']:
+    edited_report = st.text_area("Review and Edit Report:", value=st.session_state['report_content'], height=600, key='edited_report')
+    if st.button('Save Report',on_click=save_report):
+        pass
+        
 
 # Create a concise medical report for Arjun Patel, a 45-year-old male, who underwent a
 # laparoscopic hernia repair on 03/22/2024 for a right inguinal hernia. The surgery, led by Dr. Anil

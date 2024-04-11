@@ -86,9 +86,6 @@ async def extract_intent_and_content(query:str,intent:str):
             file_id=uuid.uuid4().hex
             file_name=f'{file_id}.txt'
             file_path=os.path.join(health_records_directory,file_name)
-            with open(file_path,'w') as file:
-                file.write(report)
-                file.write('\n')
         else:
             report = None
         
@@ -180,7 +177,7 @@ async def execute_task_on_records(record, task):
         output_search = None
     return output
     
-    
+
 @app.post("/process_request/")
 async def process_request(request: Request):
     data=await request.json()
@@ -219,6 +216,16 @@ async def process_request(request: Request):
         return{"attribute name":f"{output_task[0]}","attribute value":f"{output_task[1]}","task":f"{output_task[2]}"}
     else:
         return{'message':'no intents match'}
-    
+
+@app.post("/save_report/")
+async def save_report(request: Request):
+    data=await request.json()
+    report=data['report']
+    file_path=data['file_path']
+    with open(file_path,'w') as file:
+        file.write(report)
+        file.write('\n')
+    print('report saved')
+  
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
