@@ -11,8 +11,8 @@ import datetime
 
 app=FastAPI()
 
-health_records_directory='/home/blu/ai/smart_ehr/health_records'
-health_records_lookup='/home/blu/ai/smart_ehr/health_records/ehr_lookup.json'
+health_records_directory=os.getenv('HEALTH_RECORDS_DIRECTORY')
+health_records_lookup=f'{health_records_directory}/ehr_lookup.json'
 
 async def gpt_processor(prompt,max_tokens):
     
@@ -66,7 +66,7 @@ async def extract_intent_and_content(query:str,intent:str):
     You must give the medical record for the patient as output  
     This is the query given by the doctor: 
     {query}\n'''
-        output=await gpt_processor(create_prompt,650)
+        output=await gpt_processor(create_prompt,1000)
     #     After the medical record give a summary of the medical record in MAX 40 words as Summary: <summary>, mentioning key 
     # details like Personal Information(Name,Age,Gender), Surgical Procedure and Medical History. Dont mention the headings in the 
     # summary. This summary should contain only the key details and should be a single string on a single line.
@@ -86,32 +86,13 @@ async def extract_intent_and_content(query:str,intent:str):
             report = report_match.group(1).strip()
             if not os.path.exists(health_records_directory):
                 os.makedirs(health_records_directory)
+            print(health_records_directory)
             file_id=uuid.uuid4().hex
             file_name=f'{file_id}.txt'
             file_path=os.path.join(health_records_directory,file_name)
         else:
             report = None
         
-        # # Extract Summary
-        # summary_match = re.search(r"^Summary: (.+)$", output, re.MULTILINE)
-        # if summary_match:
-        #     summary = summary_match.group(1)
-        # else:
-        #     summary = None
-        
-        # if os.path.exists(health_records_lookup):
-        #     with open(health_records_lookup,'r') as lookup_file:
-        #         lookup_data=json.load(lookup_file)
-        # else:
-        #     lookup_data={}
-        
-        # lookup_data[file_id] = {
-        #     "file_path": file_path,
-        #     "patient_id":patient_id,
-        #     "summary": summary
-        # }
-        # with open(health_records_lookup,'w') as lookup_file:
-        #     json.dump(lookup_data, lookup_file, indent=4)
         print(patient_id_exists)
         return (file_path,report,patient_id_exists)
     
@@ -145,7 +126,26 @@ async def extract_intent_and_content(query:str,intent:str):
         else:
             task = None
         
-        return (attribute_name,attribute_value,task)     
+        return (attribute_name,attribute_value,task)  
+    elif intent.lower()=='update': 
+        update_prompt=f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a 
+         Doctor, where you are asked to update the medical record of an existing patient. You need to extract information from the query and structure it into various headings and subheadings which occur in a medical record, like:
+        Patient id, Test Reports and Results, Medical History, Prescription, Condition Improvements,etc
+         You need to write the patient id at the top, and must not write any other personal information like name, age,etc. since that information is already present in the previous record.
+         You must not mention a Heading or Subheading in the output, if its information isnt given in the query.
+         You must clearly mention numerical results of the test, and you must structure the report chronologically.
+    This is the query given by the doctor: 
+    {query}\n'''
+        output=await gpt_processor(update_prompt,400)
+        patient_id_exists=False
+        patient_id_match = re.search(r"Patient id: (.+)$", output,re.IGNORECASE|re.MULTILINE)
+        if patient_id_match:
+            patient_id=patient_id_match.group(1)
+            print('patient_id',patient_id)
+            patient_id_exists=True
+        else:
+            patient_id=None
+        
 
 async def generate_summary(report:str):
     summary_prompt = f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be provided with the medical record of a patient as input, and you must generate a summary of that medical record as output.

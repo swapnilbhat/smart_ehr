@@ -43,7 +43,7 @@ def save_report():
     st.session_state['report_generated'] = False
     st.session_state['report_content'] = ""
     
-input_text=st.text_area("Input: ",key="input")
+input_text=st.text_area("Input: ",key="input",height=200)
 
 if st.button('Submit'):
     process_request()
@@ -111,3 +111,10 @@ if st.session_state['report_generated']:
 # Patient settled well and discharged on 30/3/24.
 # On discharge he had oral lesions of Herpes Labialis ,which was treated with single
 # dose famciclovir and acivir cream .
+
+# Pt followed up with us after 48 hours and
+# Reports were within normal range
+# Cbc hb 15.4,wbc 7,800 platelets 3,14,000
+# Liver function tests- total bilirubin 0.83,direct bilirubin 0.22,indirect bilirubin
+# 61,SGOT 33,SGPT 35,ALKALINE PHOSPHATASE109,GGTP 97.
+# Suture removal done on 2/4/24 and patient doing well
