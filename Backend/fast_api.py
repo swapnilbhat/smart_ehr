@@ -52,6 +52,7 @@ async def extract_intent_and_content(query:str,intent:str):
      doctor, and structure it into a proper format with headings and subheadings along with the date mentioned in the query.
     Examples of headings and its subheadings:
     Heading: Patient Information ; Subheadings: Patient id,Name, Age, Gender, Date of Birth, Address, Phone Number, Blood Group, etc
+    Heading: Chief Complaints
     Heading: General Information
     Heading: Medical History;  
     Heading: Surgical Procedure; Subheadings: Procedure Name, Date of Surgery, Surgeon, Procedure Details, etc
@@ -136,18 +137,38 @@ async def extract_intent_and_content(query:str,intent:str):
          You must clearly mention numerical results of the test, and you must structure the report chronologically.
     This is the query given by the doctor: 
     {query}\n'''
-        output=await gpt_processor(update_prompt,400)
-        print(output)
+    #   update_prompt=f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a 
+    #      Doctor, where you are asked to update the medical record of an existing patient. You need to extract information from the query and structure it into various headings and subheadings which occur in a medical record, like:
+    #     Patient id and the Medical Record of the patient, which includes:Test Reports and Results, Medical History, Prescription, Condition Improvements,etc.
+    #     Your output must be structured as JSON.
+    #     You must structure your output as follows:
+    #    {{"patient_id":"<Patient id if present otherwise empty>", "medical_record":"<Medical record of the patient>"}}
+    #    Ensure to fill in each field with relevant information from the query, and leave fields empty if no relevant information is provided.
+    #      You must clearly mention numerical results of the tests in the Medical Record, and you must structure the report chronologically.
+    # This is the query given by the doctor: 
+    # {query}\n'''
+        output=await gpt_processor(update_prompt,300)
+        #print(output)
         patient_id_exists=False
-        patient_id_match = re.search(r"Patient id: (.+)$", output,re.IGNORECASE|re.MULTILINE)
+        patient_id_match = re.search("Patient id: (.+)$", output,re.IGNORECASE|re.MULTILINE)
         if patient_id_match:
             patient_id=patient_id_match.group(1)
             print('patient_id',patient_id)
             patient_id_exists=True
         else:
             patient_id=None
+        file_id=uuid.uuid4().hex
+        file_name=f'{file_id}.txt'
+        file_path=os.path.join(health_records_directory,file_name)
         
-        return (output,patient_id_exists)# need to break out the actual output
+        # result =  re.search(r'Patient id: [^\n]*[\r\n]+([^\S\r\n]*.*$)', output, re.IGNORECASE|re.DOTALL)
+        # if result:
+        #     extracted_text = result.group(1)
+        #     print('extracted: ',extracted_text)
+        # else:
+        #     print("No match found.")
+        
+        return (output,patient_id_exists,file_path)# need to break out the actual output
     else:
         return ('No predefined intents match')
         
@@ -239,15 +260,17 @@ async def process_request(request: Request):
             print('No matching records found')
         return{"attribute name":f"{output_task[0]}","attribute value":f"{output_task[1]}","task":f"{output_task[2]}"}
     elif intent.lower()=='update':
-        return {"Updated Report": output_task[0],"Patient id exists":output_task[1]}
+        return {"Updated Report": output_task[0],"Patient id exists":output_task[1],"File Path":output_task[2]}
     else:
         return{'undefined':output_task}
 
 @app.post("/save_report/")
 async def save_report(request: Request):
     data=await request.json()
+    print('data',data)
     report=data.get('report','')
-    file_path=data.get('File Path', '')
+    file_path=data.get('file_path', '')
+    print('file_path_prior',file_path)
     #Patient id will be provided-no case where it wont be there
     #Read the report and find patient id
     patient_id_exists_in_records=False
@@ -273,11 +296,25 @@ async def save_report(request: Request):
     if patient_id_exists_in_records:
         print('patient record already exists')
         #Add to existing patient record, no changes to summary required
-        
+        #Regex out the content and remove the patient id
+        result =  re.search(r'Patient id: [^\n]*[\r\n]+([^\S\r\n]*.*$)', report, re.IGNORECASE|re.DOTALL)
+        if result:
+            extracted_text = result.group(1)
+            print('extracted: ',extracted_text)
+        else:
+            print("No match found.")
+         
         now = datetime.datetime.now()
         date_format = now.strftime("%d/%m/%Y")
         time_format = now.strftime("%H:%M")
         print(file_path)
+        print('extracted: ',extracted_text)
+        with open(file_path,'a') as file:
+            file.write('\n\n')
+            file.write(f'Record Entry: {date_format} {time_format}\n\n')
+            file.write(extracted_text)
+            file.write('\n')
+        print('report saved')
     else:
         file_name = file_path.split('/')[-1]
         # Now remove the extension '.txt'

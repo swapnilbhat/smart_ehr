@@ -30,6 +30,7 @@ def process_request():
         #For create intent
         st.session_state['report_content'] = response_data.get('Generated Report', '')
         st.session_state['file_path'] = response_data.get('File Path', '')
+        st.write(st.session_state['file_path'])
         st.session_state['patient_id_exists']=response_data.get('Patient id exists',False)
         #For update intent
         st.session_state['updated_report']=response_data.get('Updated Report','')
@@ -51,7 +52,7 @@ def save_report():
     st.session_state['report_content'] = ""
 
 def save_update_report():
-    response = requests.post(f"{FASTAPI_ENDPOINT}/save_report/", json={'report': st.session_state['edited_updated_report']})
+    response = requests.post(f"{FASTAPI_ENDPOINT}/save_report/", json={'report': st.session_state['edited_updated_report'],'file_path':  st.session_state['file_path']})
     if response.status_code == 200:
         if response.json():
             st.warning('Patient id not provided')
