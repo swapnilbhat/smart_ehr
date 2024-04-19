@@ -168,7 +168,7 @@ async def extract_intent_and_content(query:str,intent:str):
         # else:
         #     print("No match found.")
         
-        return (output,patient_id_exists,file_path)# need to break out the actual output
+        return (file_path,output,patient_id_exists)# need to break out the actual output
     else:
         return ('No predefined intents match')
         
@@ -260,7 +260,7 @@ async def process_request(request: Request):
             print('No matching records found')
         return{"attribute name":f"{output_task[0]}","attribute value":f"{output_task[1]}","task":f"{output_task[2]}"}
     elif intent.lower()=='update':
-        return {"Updated Report": output_task[0],"Patient id exists":output_task[1],"File Path":output_task[2]}
+        return {"Intent": intent,"File Path":output_task[0],"Updated Report": output_task[1],"Patient id exists":output_task[2]}
     else:
         return{'undefined':output_task}
 
@@ -271,6 +271,7 @@ async def save_report(request: Request):
     report=data.get('report','')
     file_path=data.get('file_path', '')
     print('file_path_prior',file_path)
+    intent=data.get('intent','')
     #Patient id will be provided-no case where it wont be there
     #Read the report and find patient id
     patient_id_exists_in_records=False
@@ -316,6 +317,12 @@ async def save_report(request: Request):
             file.write('\n')
         print('report saved')
     else:
+        print(intent)
+        print(intent.lower())
+        if intent.lower()=='update':
+            print('inside the condition')
+            return {'message':'Patient id does not exist in the database'}
+        print('condition failed')
         file_name = file_path.split('/')[-1]
         # Now remove the extension '.txt'
         file_id = file_name.split('.')[0] #required for json

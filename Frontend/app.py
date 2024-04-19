@@ -22,15 +22,18 @@ if 'updated_report' not in st.session_state:
 
 if 'undefined' not in st.session_state:
     st.session_state['undefined'] = ""
+
+if 'create_new_report_block' not in st.session_state:
+    st.session_state['create_new_report_block'] = False
     
 def process_request():
     response=requests.post(f'{FASTAPI_ENDPOINT}/process_request/',json={'query':st.session_state.input})
     if response.status_code==200:
         response_data = response.json()
+        st.session_state['intent']=response_data.get('Intent','')
         #For create intent
         st.session_state['report_content'] = response_data.get('Generated Report', '')
         st.session_state['file_path'] = response_data.get('File Path', '')
-        st.write(st.session_state['file_path'])
         st.session_state['patient_id_exists']=response_data.get('Patient id exists',False)
         #For update intent
         st.session_state['updated_report']=response_data.get('Updated Report','')
@@ -41,7 +44,7 @@ def process_request():
         return []
 
 def save_report():
-    response = requests.post(f"{FASTAPI_ENDPOINT}/save_report/", json={'report': st.session_state['edited_report'], 'file_path':  st.session_state['file_path']})
+    response = requests.post(f"{FASTAPI_ENDPOINT}/save_report/", json={'report': st.session_state['edited_report'], 'file_path':  st.session_state['file_path'],'intent':st.session_state['intent']})
     if response.status_code == 200:
         if response.json():
             st.warning('Patient id not provided')
@@ -52,15 +55,25 @@ def save_report():
     st.session_state['report_content'] = ""
 
 def save_update_report():
-    response = requests.post(f"{FASTAPI_ENDPOINT}/save_report/", json={'report': st.session_state['edited_updated_report'],'file_path':  st.session_state['file_path']})
+    response = requests.post(f"{FASTAPI_ENDPOINT}/save_report/", json={'report': st.session_state['edited_updated_report'],'file_path':  st.session_state['file_path'],'intent':st.session_state['intent']})
     if response.status_code == 200:
-        if response.json():
+        response_data=response.json()
+        if response_data['message']=='Patient id is not provided':
             st.warning('Patient id not provided')
+        elif response_data['message']=='Patient id does not exist in the database':
+            st.warning('Patient id does not exist in the database')
+            st.warning('You need to create a new record for the patient. Please check whether the input has sufficient information')
+            #st.session_state['create_new_report_block']=True
         else:
             st.success("Report saved successfully")
     else:
         st.error("Failed to save the report")
     st.session_state['updated_report'] = ""
+
+def create_new_report():
+    st.session_state['intent']='create'
+    st.write(st.session_state)
+    
     
     
 input_text=st.text_area("Input: ",key="input",height=200)
@@ -81,11 +94,14 @@ if st.session_state['updated_report']:
         st.warning("Please ensure a Patient ID is included in the report.")
     if st.button('Save Report',on_click=save_update_report):
         pass
-    
+
+# if st.session_state['create_new_report_block']:
+#     if st.button('Create a new Report with given information',on_click=process_request):
+#         pass
 if st.session_state['undefined']:
     st.warning(st.session_state['undefined']) 
     st.session_state['undefined'] = ""
-          
+    
 
 # Create a concise medical report for Arjun Patel, a 45-year-old male, who underwent a
 # laparoscopic hernia repair on 03/22/2024 for a right inguinal hernia. The surgery, led by Dr. Anil
