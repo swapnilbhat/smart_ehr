@@ -131,7 +131,7 @@ async def extract_intent_and_content(query:str,intent:str):
         update_prompt=f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a 
          Doctor, where you are asked to update the medical record of an existing patient. You need to extract information from the query and structure it into various headings and subheadings which occur in a medical record, like:
         Patient id, Test Reports and Results, Medical History, Prescription, Condition Improvements,etc
-         You need to write the patient id at the top, and must not write any other personal information like name, age,etc. since that information is already present in the previous record.
+         You need to write the patient id at the top, and must not write any other personal information like name, age,etc.
          You must not mention a Heading or Subheading in the output, if its information isnt given in the query.
          You must clearly mention numerical results of the test, and you must structure the report chronologically.
     This is the query given by the doctor: 
@@ -145,6 +145,8 @@ async def extract_intent_and_content(query:str,intent:str):
             patient_id_exists=True
         else:
             patient_id=None
+    else:
+        return ('No predefined intents match')
         
 
 async def generate_summary(report:str):
@@ -216,9 +218,9 @@ async def process_request(request: Request):
         intent = intent_match.group(1)
     else:
         intent = None
-    print(intent)
+    print('Intent: ',intent)
     output_task=await extract_intent_and_content(query,intent)
-    
+    print('output_task: ',output_task)
     #Heavy regex to be employed here- separate out the intent and the following text
     if intent.lower()=='create':
         #send the report to streamlit for the user to edit
@@ -234,7 +236,7 @@ async def process_request(request: Request):
             print('No matching records found')
         return{"attribute name":f"{output_task[0]}","attribute value":f"{output_task[1]}","task":f"{output_task[2]}"}
     else:
-        return{'message':'no intents match'}
+        return{'undefined':output_task}
 
 @app.post("/save_report/")
 async def save_report(request: Request):

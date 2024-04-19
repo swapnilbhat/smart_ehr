@@ -13,20 +13,23 @@ st.markdown("<br><br><br>",unsafe_allow_html=True)
 
 if 'input' not in st.session_state:
     st.session_state['input'] = ""
-if 'report_generated' not in st.session_state:
-    st.session_state['report_generated'] = False
+
 if 'report_content' not in st.session_state:
     st.session_state['report_content'] = ""
+
+if 'undefined' not in st.session_state:
+    st.session_state['undefined'] = ""
     
 def process_request():
     response=requests.post(f'{FASTAPI_ENDPOINT}/process_request/',json={'query':st.session_state.input})
     if response.status_code==200:
         response_data = response.json()
-        st.session_state['report_generated'] = True
+        #For create intent
         st.session_state['report_content'] = response_data.get('Generated Report', '')
         st.session_state['file_path'] = response_data.get('File Path', '')
         st.session_state['patient_id_exists']=response_data.get('Patient id exists',False)
-        # return response_data
+        #For undefined intent
+        st.session_state['undefined']=response_data.get('undefined','')
     else:
         st.error("Failed to recieve response from FASTAPI")
         return []
@@ -40,7 +43,6 @@ def save_report():
             st.success("Report saved successfully")
     else:
         st.error("Failed to save the report")
-    st.session_state['report_generated'] = False
     st.session_state['report_content'] = ""
     
 input_text=st.text_area("Input: ",key="input",height=200)
@@ -48,13 +50,17 @@ input_text=st.text_area("Input: ",key="input",height=200)
 if st.button('Submit'):
     process_request()
 
-if st.session_state['report_generated']:
+if st.session_state['report_content']:
     edited_report = st.text_area("Review and Edit Report:", value=st.session_state['report_content'], height=600, key='edited_report')
     if not st.session_state.get('patient_id_exists', True):  # Default to True to avoid showing error on first load
         st.warning("Please ensure a Patient ID is included in the report.")
     if st.button('Save Report',on_click=save_report):
         pass
-        
+
+if st.session_state['undefined']:
+    st.warning(st.session_state['undefined']) 
+    st.session_state['undefined'] = ""
+          
 
 # Create a concise medical report for Arjun Patel, a 45-year-old male, who underwent a
 # laparoscopic hernia repair on 03/22/2024 for a right inguinal hernia. The surgery, led by Dr. Anil
