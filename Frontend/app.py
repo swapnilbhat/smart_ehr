@@ -25,6 +25,10 @@ if 'undefined' not in st.session_state:
 
 if 'create_new_report_block' not in st.session_state:
     st.session_state['create_new_report_block'] = False
+
+if 'query_result' not in st.session_state:
+    st.session_state['query_result'] = ''
+
     
 def process_request():
     response=requests.post(f'{FASTAPI_ENDPOINT}/process_request/',json={'query':st.session_state.input})
@@ -37,6 +41,8 @@ def process_request():
         st.session_state['patient_id_exists']=response_data.get('Patient id exists',False)
         #For update intent
         st.session_state['updated_report']=response_data.get('Updated Report','')
+        #For read intent
+        st.session_state['query_result']=response_data.get('read result','')
         #For undefined intent
         st.session_state['undefined']=response_data.get('undefined','')
     else:
@@ -98,6 +104,10 @@ if st.session_state['updated_report']:
 # if st.session_state['create_new_report_block']:
 #     if st.button('Create a new Report with given information',on_click=process_request):
 #         pass
+
+if st.session_state['query_result']:
+    st.write(st.session_state['query_result'])
+
 if st.session_state['undefined']:
     st.warning(st.session_state['undefined']) 
     st.session_state['undefined'] = ""

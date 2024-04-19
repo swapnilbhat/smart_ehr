@@ -254,11 +254,12 @@ async def process_request(request: Request):
         records=await search_and_load_summary(output_task[1])
         if records:
             #print(records)
+            #Taking multiple records as of now
             result=await execute_task_on_records(records[0],output_task[2])   
             print(result)
         else:
             print('No matching records found')
-        return{"attribute name":f"{output_task[0]}","attribute value":f"{output_task[1]}","task":f"{output_task[2]}"}
+        return{"read result":result}
     elif intent.lower()=='update':
         return {"Intent": intent,"File Path":output_task[0],"Updated Report": output_task[1],"Patient id exists":output_task[2]}
     else:
