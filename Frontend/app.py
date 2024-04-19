@@ -17,6 +17,9 @@ if 'input' not in st.session_state:
 if 'report_content' not in st.session_state:
     st.session_state['report_content'] = ""
 
+if 'updated_report' not in st.session_state:
+    st.session_state['updated_report'] = ""
+
 if 'undefined' not in st.session_state:
     st.session_state['undefined'] = ""
     
@@ -28,6 +31,8 @@ def process_request():
         st.session_state['report_content'] = response_data.get('Generated Report', '')
         st.session_state['file_path'] = response_data.get('File Path', '')
         st.session_state['patient_id_exists']=response_data.get('Patient id exists',False)
+        #For update intent
+        st.session_state['updated_report']=response_data.get('Updated Report','')
         #For undefined intent
         st.session_state['undefined']=response_data.get('undefined','')
     else:
@@ -44,6 +49,18 @@ def save_report():
     else:
         st.error("Failed to save the report")
     st.session_state['report_content'] = ""
+
+def save_update_report():
+    response = requests.post(f"{FASTAPI_ENDPOINT}/save_report/", json={'report': st.session_state['edited_updated_report']})
+    if response.status_code == 200:
+        if response.json():
+            st.warning('Patient id not provided')
+        else:
+            st.success("Report saved successfully")
+    else:
+        st.error("Failed to save the report")
+    st.session_state['updated_report'] = ""
+    
     
 input_text=st.text_area("Input: ",key="input",height=200)
 
@@ -57,6 +74,13 @@ if st.session_state['report_content']:
     if st.button('Save Report',on_click=save_report):
         pass
 
+if st.session_state['updated_report']:
+    updated_report = st.text_area("Review and Edit Report:", value=st.session_state['updated_report'], height=600, key='edited_updated_report')
+    if not st.session_state.get('patient_id_exists', True):  # Default to True to avoid showing error on first load
+        st.warning("Please ensure a Patient ID is included in the report.")
+    if st.button('Save Report',on_click=save_update_report):
+        pass
+    
 if st.session_state['undefined']:
     st.warning(st.session_state['undefined']) 
     st.session_state['undefined'] = ""

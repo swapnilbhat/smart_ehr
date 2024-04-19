@@ -137,6 +137,7 @@ async def extract_intent_and_content(query:str,intent:str):
     This is the query given by the doctor: 
     {query}\n'''
         output=await gpt_processor(update_prompt,400)
+        print(output)
         patient_id_exists=False
         patient_id_match = re.search(r"Patient id: (.+)$", output,re.IGNORECASE|re.MULTILINE)
         if patient_id_match:
@@ -145,6 +146,8 @@ async def extract_intent_and_content(query:str,intent:str):
             patient_id_exists=True
         else:
             patient_id=None
+        
+        return (output,patient_id_exists)# need to break out the actual output
     else:
         return ('No predefined intents match')
         
@@ -235,14 +238,16 @@ async def process_request(request: Request):
         else:
             print('No matching records found')
         return{"attribute name":f"{output_task[0]}","attribute value":f"{output_task[1]}","task":f"{output_task[2]}"}
+    elif intent.lower()=='update':
+        return {"Updated Report": output_task[0],"Patient id exists":output_task[1]}
     else:
         return{'undefined':output_task}
 
 @app.post("/save_report/")
 async def save_report(request: Request):
     data=await request.json()
-    report=data['report']
-    file_path=data['file_path']
+    report=data.get('report','')
+    file_path=data.get('File Path', '')
     #Patient id will be provided-no case where it wont be there
     #Read the report and find patient id
     patient_id_exists_in_records=False
@@ -267,6 +272,12 @@ async def save_report(request: Request):
     
     if patient_id_exists_in_records:
         print('patient record already exists')
+        #Add to existing patient record, no changes to summary required
+        
+        now = datetime.datetime.now()
+        date_format = now.strftime("%d/%m/%Y")
+        time_format = now.strftime("%H:%M")
+        print(file_path)
     else:
         file_name = file_path.split('/')[-1]
         # Now remove the extension '.txt'
