@@ -5,7 +5,7 @@ FASTAPI_ENDPOINT = "http://localhost:8000"
 
 st.set_page_config(page_title="EHR Assistant", page_icon="🔍", initial_sidebar_state="collapsed")
 
-st.title('EHR Assistant by VoxHealth Solutions')
+st.title('EHR Assistant by AristaSurge')
 
 st.markdown(f"<h3>Responds with a specific EHR message</h3>", unsafe_allow_html=True)
 
@@ -124,7 +124,7 @@ if st.session_state['undefined']:
 
 #For patient Dev Jain, compare his creat levels to past records
 
-# John ,patient id:fhgj23, 40 years old male came with complaints of pain in the epigastric region and
+# John, 40 years old male came with complaints of pain in the epigastric region and
 # right hypochondrium since 2-3 months.
 # Since 1-2 weeks, the intensity and the frequency of pain increased such that pt had
 # to take iv analgesics.
@@ -169,9 +169,15 @@ if st.session_state['undefined']:
 # On discharge he had oral lesions of Herpes Labialis ,which was treated with single
 # dose famciclovir and acivir cream .
 
-# Pt followed up with us after 48 hours and
+# add this to the record of Pt with id: jljj9,who followed up with us after 48 hours and
 # Reports were within normal range
 # Cbc hb 15.4,wbc 7,800 platelets 3,14,000
 # Liver function tests- total bilirubin 0.83,direct bilirubin 0.22,indirect bilirubin
 # 61,SGOT 33,SGPT 35,ALKALINE PHOSPHATASE109,GGTP 97.
 # Suture removal done on 2/4/24 and patient doing well
+
+# retrieve the latest lft results for john and the date of the test
+
+# Patient John Doe, a 45-year-old male, was admitted for elective surgical repair of bilateral inguinal hernias, which he reported having troubled him for the past six months. The discomfort was notably exacerbated by physical activities and lifting heavy objects. On physical examination, the hernias were observed as bilateral, reducible, and without signs of strangulation or obstruction.
+# The decision to perform a Transabdominal Preperitoneal (TEPP) hernia repair was made given the patient’s symptoms and physical findings. The procedure commenced at 08:30 AM under general anesthesia. The approach involved making a small incision just above the pubic area, followed by the insertion of a laparoscope for visualization. The hernia sacs were carefully dissected and reduced back into the abdominal cavity. A mesh was placed over the peritoneal opening to reinforce the abdominal wall and prevent recurrence.
+# The mesh was secured without complications, and the layers of the abdomen were meticulously closed. The operation concluded successfully at 11:15 AM. Postoperatively, the patient was transferred to the recovery room in stable condition. He was monitored for any immediate complications and was prescribed pain management and instructions to limit physical activity. Follow-up was scheduled for two weeks post-operation to assess healing and discuss gradual return to normal activities. The patient was educated on signs of potential complications, such as infection or recurrence, and advised to report any unusual symptoms promptly.
