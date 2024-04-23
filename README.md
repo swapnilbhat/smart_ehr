@@ -12,6 +12,16 @@ In order to run, follow the instruction below:
 ## Backend
 `python3 Backend/fast_api.py`
 
+# Steps to run the docker container- commands should be run in ubuntu terminal:
+- `docker load < smart_ehr.tar`
+- Verify that the image is created, run `docker images`
+- `sudo docker run -d -p 8501:8501 -p 8000:8000 --name smart_ehr_app smart_ehr`
+- Open `localhost:8501` on your browser to see the streamlit interface
+
+# Check the reports inside the docker container- commands should be run in ubuntu terminal:
+- `docker exec -it smart_ehr_app bash`
+- `cd health_records`
+
 ## Current Implementation
 - You can create a new record, and edit it in the web interface before saving it, to ensure validity
 - You can read existing records, and by entering a search query and get releavant information from the records without manually scanning through them
