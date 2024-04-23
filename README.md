@@ -11,7 +11,9 @@ In order to run, follow the instruction below:
 
 ## Backend
 `python3 Backend/fast_api.py`
-
+## Install Docker desktop on windows:
+- Visit the url: `https://docs.docker.com/desktop/install/windows-install/`
+- In case of a prompt select the WSL environment
 ## Steps to run the docker container- commands should be run in ubuntu terminal:
 - `docker load < smart_ehr.tar`
 - Verify that the image is created, run `docker images`
