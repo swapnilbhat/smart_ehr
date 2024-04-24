@@ -4,7 +4,7 @@ An AI powered system to create, read and get recommendations from patient health
 In order to run, follow the instruction below:
 
 ## Install the requirements
-`pip install -r requirements.txt`
+`pip install streamlit fastapi uvicorn openai aiohttp`
 
 ## Frontend
 `streamlit run Frontend/app.py`
