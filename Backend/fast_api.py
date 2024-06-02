@@ -8,11 +8,73 @@ import re
 import uuid
 import time
 import datetime
+from openai import OpenAI
 
 app=FastAPI()
 
 health_records_directory=os.getenv('HEALTH_RECORDS_DIRECTORY')
 health_records_lookup=f'{health_records_directory}/ehr_lookup.json'
+
+def search_key_in_json(json_obj, search_term):
+    search_term = search_term.lower()
+    
+    def recursive_search(d):
+        for key, value in d.items():
+            if key.lower() == search_term:
+                return value
+            elif isinstance(value, dict):
+                result = recursive_search(value)
+                if result is not None:
+                    return result
+        return None
+    
+    return recursive_search(json_obj)
+
+def json_to_formatted_string(json_obj):
+    def parse_dict(d, level=0):
+        lines = []
+        for key, value in d.items():
+            if isinstance(value, dict):
+                lines.append(f"{' ' * (level * 2)}{key}:")
+                lines.extend(parse_dict(value, level + 1))
+            elif isinstance(value, list):
+                lines.append(f"{' ' * (level * 2)}{key}:")
+                for item in value:
+                    lines.append(f"{' ' * ((level + 1) * 2)}- {item}")
+            else:
+                lines.append(f"{' ' * (level * 2)}- {key}: {value}")
+        return lines
+    
+    formatted_string = "\n".join(parse_dict(json_obj))
+    return formatted_string
+
+def formatted_string_to_json(formatted_string):
+    lines = formatted_string.split("\n")
+    
+    def parse_lines(lines, level=0):
+        obj = {}
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            current_level = len(re.match(r'\s*', line).group(0)) // 2
+            
+            if current_level < level:
+                break
+            
+            if current_level == level:
+                if ": " in line:
+                    key, value = line.strip().split(": ", 1)
+                    obj[key.strip()] = value.strip()
+                elif line.strip().endswith(":"):
+                    key = line.strip()[:-1]
+                    i, nested_obj = parse_lines(lines[i + 1:], level + 1)
+                    obj[key.strip()] = nested_obj
+            
+            i += 1
+        return i, obj
+    
+    _, json_obj = parse_lines(lines)
+    return json_obj
 
 async def gpt_processor(prompt,max_tokens):
     
@@ -32,7 +94,7 @@ async def gpt_processor(prompt,max_tokens):
         "role": "user",
         "content": prompt
       }],
-        "temperature": 0.01,
+        "temperature": 0,
         "max_tokens": max_tokens,
     })
     async with aiohttp.ClientSession() as session:
@@ -43,13 +105,28 @@ async def gpt_processor(prompt,max_tokens):
                 return intent
             else:
                 return "Error: Failed to receive a valid response from OpenAI API"
+            
+async def gpt_json(prompt,max_tokens):
+    client = OpenAI(api_key=os.getenv('OPENAI_API_KEY', 'default-key'))
+    messages = [
+           {"role": "system", "content": "You are a helpful assistant designed to output JSON."},
+            {"role": "user", "content":  f'''{prompt}'''},
+            ]
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo-0125",
+        temperature=0,
+        response_format={ "type": "json_object" },
+        messages=messages
+        )
+    result=response.choices[0].message.content
+    return result
 
 async def extract_intent_and_content(query:str,intent:str):
     if intent.lower() == 'create':
         create_prompt=f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a 
          Doctor, where you are asked to create a medical record for a patient.
     You need to create a Medical record of the patient based on the information provided by the 
-     doctor, and structure it into a proper format with headings and subheadings along with the date mentioned in the query.
+     doctor, and structure it into a json format with headings and subheadings along with the date mentioned in the query.
     Examples of headings and its subheadings:
     Heading: Patient Information ; Subheadings: Patient id,Name, Age, Gender, Date of Birth, Address, Phone Number, Blood Group, etc
     Heading: Chief Complaints
@@ -67,34 +144,44 @@ async def extract_intent_and_content(query:str,intent:str):
     You must give the medical record for the patient as output  
     This is the query given by the doctor: 
     {query}\n'''
-        output=await gpt_processor(create_prompt,1000)
-    #     After the medical record give a summary of the medical record in MAX 40 words as Summary: <summary>, mentioning key 
-    # details like Personal Information(Name,Age,Gender), Surgical Procedure and Medical History. Dont mention the headings in the 
-    # summary. This summary should contain only the key details and should be a single string on a single line.
+        output=await gpt_json(create_prompt,1000)
         #print(output)
-        # # Extract Medical Report
-        patient_id_exists=False
-        patient_id_match = re.search(r"Patient id: (.+)$", output,re.IGNORECASE|re.MULTILINE)
-        if patient_id_match:
-            patient_id=patient_id_match.group(1)
-            print('patient_id',patient_id)
-            patient_id_exists=True
-        else:
-            patient_id=None
-        # We use the lookahead assertion (?=Summary:) to stop at the "Summary" section
-        report_match = re.search(r"^Patient Information:(.+)$", output, re.DOTALL | re.MULTILINE)
-        if report_match:
-            report = report_match.group(1).strip()
-            if not os.path.exists(health_records_directory):
-                os.makedirs(health_records_directory)
-            print(health_records_directory)
-            file_id=uuid.uuid4().hex
-            file_name=f'{file_id}.txt'
-            file_path=os.path.join(health_records_directory,file_name)
-        else:
-            report = None
+        report_json=json.loads(output)
+        patient_id_exists=True
+        result=search_key_in_json(report_json,'patient id')
+        if not result:
+            patient_id_exists=False
+            # report_json['Patient Information']['Patient id'] = ''
+            # json.dumps(report_json, indent=4)
+            patient_info = report_json['Patient Information']
+            new_patient_info = {'Patient id': ''}  # You can replace '12345' with the actual patient id
+            new_patient_info.update(patient_info)
+            # Update the original dictionary
+            report_json['Patient Information'] = new_patient_info
+            json.dumps(report_json, indent=4)
+            
+            
+        print('patient id exists',patient_id_exists)
+        #Convert report_json to report, which is some kind of text format of json, but looks human readable
+        report = json_to_formatted_string(report_json)
+        print("report:\n", report_json)
+        # json_obj = formatted_string_to_json(formatted_string)
+        # print("Reconstructed JSON:\n", json.dumps(json_obj, indent=4))
         
-        print(patient_id_exists)
+        # # We use the lookahead assertion (?=Summary:) to stop at the "Summary" section
+        # report_match = re.search(r"^Patient Information:(.+)$", output, re.DOTALL | re.MULTILINE)
+        # if report_match:
+        #     report = report_match.group(1).strip()
+        if not os.path.exists(health_records_directory):
+            os.makedirs(health_records_directory)
+        
+        file_id=uuid.uuid4().hex
+        file_name=f'{file_id}.txt'
+        file_path=os.path.join(health_records_directory,file_name)
+        # else:
+        #     report = None
+        
+        # print(patient_id_exists)
         return (file_path,report,patient_id_exists)
     
     elif intent.lower()=='read':
@@ -130,33 +217,42 @@ async def extract_intent_and_content(query:str,intent:str):
         return (attribute_name,attribute_value,task)  
     elif intent.lower()=='update': 
         update_prompt=f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a 
-         Doctor, where you are asked to update the medical record of an existing patient. You need to extract information from the query and structure it into various headings and subheadings which occur in a medical record, like:
-        Patient id, Test Reports and Results, Medical History, Prescription, Condition Improvements,etc
-         You need to write the patient id at the top, and must not write any other personal information like name, age,etc.
+         Doctor, where you are asked to update the medical record of an existing patient. You need to extract information from the query and structure it into json format with various headings and subheadings that occur in a medical record, like:
+        Patient details(Name, Patient id, age,etc), Test Reports and Results, Medical History, Prescription, Condition Improvements, Checks and Follow up,etc.
+         You must keep the Patient id field blank, in case it is not provided.
          You must not mention a Heading or Subheading in the output, if its information isnt given in the query.
          You must clearly mention numerical results of the test, and you must structure the report chronologically.
     This is the query given by the doctor: 
     {query}\n'''
-    #   update_prompt=f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a 
-    #      Doctor, where you are asked to update the medical record of an existing patient. You need to extract information from the query and structure it into various headings and subheadings which occur in a medical record, like:
-    #     Patient id and the Medical Record of the patient, which includes:Test Reports and Results, Medical History, Prescription, Condition Improvements,etc.
-    #     Your output must be structured as JSON.
-    #     You must structure your output as follows:
-    #    {{"patient_id":"<Patient id if present otherwise empty>", "medical_record":"<Medical record of the patient>"}}
-    #    Ensure to fill in each field with relevant information from the query, and leave fields empty if no relevant information is provided.
-    #      You must clearly mention numerical results of the tests in the Medical Record, and you must structure the report chronologically.
-    # This is the query given by the doctor: 
-    # {query}\n'''
-        output=await gpt_processor(update_prompt,300)
+        output=await gpt_json(update_prompt,300)
         #print(output)
-        patient_id_exists=False
-        patient_id_match = re.search("Patient id: (.+)$", output,re.IGNORECASE|re.MULTILINE)
-        if patient_id_match:
-            patient_id=patient_id_match.group(1)
-            print('patient_id',patient_id)
-            patient_id_exists=True
-        else:
-            patient_id=None
+        report_json=json.loads(output)
+        patient_id_exists=True
+        result=search_key_in_json(report_json,'patient id')
+        if not result:
+            patient_id_exists=False
+            new_report_json = {
+                "Patient id": result
+            }
+            for key, value in report_json.items():
+                if key.lower() != "patient details":
+                    new_report_json[key] = value
+        #print(new_report_json)
+        report = json_to_formatted_string(new_report_json)
+        print("report:\n", report)
+        # patient_id_match = re.search("Patient id: (.+)$", output,re.IGNORECASE|re.MULTILINE)
+        # if patient_id_match:
+        #     patient_id=patient_id_match.group(1)
+        #     print('patient_id',patient_id)
+        #     patient_id_exists=True
+        # else:
+        #     patient_id=None
+        # file_id=uuid.uuid4().hex
+        # file_name=f'{file_id}.txt'
+        # file_path=os.path.join(health_records_directory,file_name)
+        if not os.path.exists(health_records_directory):
+            os.makedirs(health_records_directory)
+        
         file_id=uuid.uuid4().hex
         file_name=f'{file_id}.txt'
         file_path=os.path.join(health_records_directory,file_name)
@@ -168,7 +264,7 @@ async def extract_intent_and_content(query:str,intent:str):
         # else:
         #     print("No match found.")
         
-        return (file_path,output,patient_id_exists)# need to break out the actual output
+        return (file_path,report,patient_id_exists)# need to break out the actual output
     else:
         return ('No predefined intents match')
         
@@ -229,41 +325,61 @@ async def process_request(request: Request):
     query=data['query'].strip()
     #print(query)
     #Intent classification here
-    intent_prompt=f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a Doctor, where he may ask you to create a medical record for a patient, read existing medical records for a patient, update the medical record for a patient or delete the medical records for a patient.
-    Your task is to classify the intent of the query into Create, Read , Update or Delete.
-    In your output, you must write the intent clearly as
-    Intent: <intent of the query>
-     This is the query given by the doctor: 
-    {query}\n
+    intent_prompt=f'''You are an AI designed to help doctors automate Electronic Health Records (EHR). You will be given a query by a doctor, which could involve creating a new medical record for a patient, reading existing medical records for a patient, updating the medical record for a patient, or deleting the medical records for a patient.
+
+Your task is to classify the intent of the query into one of the following categories: Create, Read, Update, or Delete.
+
+Please use the following criteria to classify the intent:
+
+- **Create:** The query asks to create a new medical record.
+  Example: "Create a new record for John Doe with the diagnosis of hypertension."
+
+- **Read:** The query asks to retrieve or read existing medical records without making any changes.
+  Example: "Retrieve the medical history for Jane Smith."
+
+- **Update:** The query asks to modify or add or update some information.
+  Example: "Update the diagnosis for John Doe to include diabetes."
+
+- **Delete:** The query asks to remove or delete existing medical records or specific information within them.
+  Example: "Delete the medical record for patient ID 12345."
+
+In your output, you must write the intent clearly as:
+Intent: <intent of the query>
+
+This is the query given by the doctor:
+{query}\n
     '''
-    output_intent=await gpt_processor(intent_prompt,100)
-    intent_match = re.search(r"^Intent: (\w+)", output_intent, re.MULTILINE)
-    if intent_match:
-        intent = intent_match.group(1)
-    else:
-        intent = None
-    print('Intent: ',intent)
+    # output_intent=await gpt_processor(intent_prompt,100)
+    # intent_match = re.search(r"^Intent: (\w+)", output_intent, re.MULTILINE)
+    # if intent_match:
+    #     intent = intent_match.group(1)
+    # else:
+    #     intent = None
+    # print('Intent: ',intent)
+    output_intent=await gpt_json(intent_prompt,100)
+    output_intent=json.loads(output_intent)
+    intent=output_intent["Intent"]
+    print("intent",intent)
     output_task=await extract_intent_and_content(query,intent)
-    print('output_task: ',output_task)
-    #Heavy regex to be employed here- separate out the intent and the following text
+    # print('output_task: ',output_task)
+    # #Heavy regex to be employed here- separate out the intent and the following text
     if intent.lower()=='create':
         #send the report to streamlit for the user to edit
         return {"Intent": intent,"Generated Report": output_task[1],"File Path": output_task[0],"Patient id exists":output_task[2]}
-        #return{"intent":f"{intent}","Generated_unique_id":f"{output_task[0]}","Patient Summary":f"{output_task[1]}"}
-    elif intent.lower()=='read':
-        records=await search_and_load_summary(output_task[1])
-        if records:
-            #print(records)
-            #Taking multiple records as of now
-            result=await execute_task_on_records(records[0],output_task[2])   
-            print(result)
-        else:
-            print('No matching records found')
-        return{"read result":result}
+    # elif intent.lower()=='read':
+    #     records=await search_and_load_summary(output_task[1])
+    #     if records:
+    #         #print(records)
+    #         #Taking multiple records as of now
+    #         result=await execute_task_on_records(records[0],output_task[2])   
+    #         print(result)
+    #     else:
+    #         print('No matching records found')
+    #     return{"read result":result}
     elif intent.lower()=='update':
         return {"Intent": intent,"File Path":output_task[0],"Updated Report": output_task[1],"Patient id exists":output_task[2]}
-    else:
-        return{'undefined':output_task}
+    # else:
+    #     return{'undefined':output_task}
 
 @app.post("/save_report/")
 async def save_report(request: Request):
@@ -324,6 +440,7 @@ async def save_report(request: Request):
             print('inside the condition')
             return {'message':'Patient id does not exist in the database'}
         print('condition failed')
+        #Intent is create
         file_name = file_path.split('/')[-1]
         # Now remove the extension '.txt'
         file_id = file_name.split('.')[0] #required for json

@@ -90,14 +90,15 @@ if st.button('Submit'):
 if st.session_state['report_content']:
     edited_report = st.text_area("Review and Edit Report:", value=st.session_state['report_content'], height=600, key='edited_report')
     if not st.session_state.get('patient_id_exists', True):  # Default to True to avoid showing error on first load
-        st.warning("Please ensure a Patient ID is included in the report.")
+        if st.session_state['intent'].lower()=='create':
+            st.warning("Please ensure a Patient id is included inside Patient Information")
     if st.button('Save Report',on_click=save_report):
         pass
 
 if st.session_state['updated_report']:
     updated_report = st.text_area("Review and Edit Report:", value=st.session_state['updated_report'], height=600, key='edited_updated_report')
     if not st.session_state.get('patient_id_exists', True):  # Default to True to avoid showing error on first load
-        st.warning("Please ensure a Patient ID is included in the report.")
+        st.warning("Please ensure a Patient id is included in the report")
     if st.button('Save Report',on_click=save_update_report):
         pass
 
