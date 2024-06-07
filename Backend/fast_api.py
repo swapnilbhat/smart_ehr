@@ -1,4 +1,7 @@
 from fastapi import FastAPI,Request
+from pydantic import BaseModel
+import motor.motor_asyncio
+from bson import ObjectId
 import uvicorn
 import aiohttp
 import openai
@@ -9,8 +12,131 @@ import uuid
 import time
 import datetime
 from openai import OpenAI
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import inch
 
 app=FastAPI()
+
+# MongoDB connection
+MONGO_DETAILS = "mongodb://localhost:27017"
+client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_DETAILS)
+database = client.health_records
+ehr_collection = database.get_collection("ehr")
+patient_lookup=database.get_collection("patient_lookup")
+
+# Pydantic model for EHR
+class EHRModel(BaseModel):
+    entry: int
+    patient_id: str
+    report: dict
+
+# Helper function to convert BSON to JSON
+def ehr_helper(ehr) -> dict:
+    return {
+        "id": str(ehr["_id"]),
+        "entry": ehr["entry"],
+        "patient_id": ehr["patient_id"],
+        "report": ehr["report"]
+    }
+
+# Insert a document into the MongoDB collection
+#@app.post("/add_record/", response_model=EHRModel)
+async def add_record(entry,patient_id,report):
+    now = datetime.datetime.now()
+    date_format = now.strftime("%d/%m/%Y")
+    time_format = now.strftime("%H:%M")
+    report_mod = {
+        'Record Entry': {
+            'Date': date_format,
+            'Time': time_format
+        }
+    }
+    report_mod.update(report)
+    # Create the record to be inserted
+    record = {
+        'entry': entry,
+        'patient_id': patient_id,
+        'report': report_mod
+    }
+    new_record = await ehr_collection.insert_one(record)
+    print(f'Record added for patient_id: {patient_id}')
+    # Update the lookup table
+    lookup_result = await patient_lookup.update_one(
+        {'patient_id': patient_id},
+        {'$inc': {'record_count': 1}},
+        upsert=True
+    )
+    created_record = await ehr_collection.find_one({"_id": new_record.inserted_id})
+    
+    return created_record
+
+async def get_patient_record_count(patient_id):
+    patient_record = await patient_lookup.find_one({'patient_id': patient_id})
+    if patient_record:
+        return patient_record['record_count']
+    else:
+        return 0
+    
+#@app.post("/print_record/", response_model=EHRModel)
+async def print_report(patient_id):
+    # Retrieve all reports for the given patient_id
+    records = await ehr_collection.find({'patient_id': patient_id}).sort('entry').to_list(None)
+    # Check if records exist
+    if not records:
+        print(f'No records found for patient_id: {patient_id}')
+        return
+    
+    print('found records')
+    # Create a PDF document
+    pdf_file = f'{patient_id}_report.pdf'
+    c = canvas.Canvas(pdf_file, pagesize=letter)
+    width, height = letter
+    
+    first_entry = True  # Flag to check for the first entry
+    
+    for record in records:
+        entry = record['entry']
+        report = record['report']
+        
+        report=json_to_formatted_string(report)
+        
+        # Create a new page for each entry
+        if not first_entry:
+            c.showPage()  # Create a new page for each subsequent entry
+        first_entry = False
+        
+        # Print entry number at the top
+        c.setFont("Helvetica", 12)
+        c.drawString(100, height - 50, f"Entry Number: {entry}")
+        
+        # Print the report content
+        y_position = height - 100
+        text_lines = report.split('\n')
+        c.setFont("Helvetica", 10)
+        
+        for line in text_lines:
+            # Ensure the text wraps if it's too long
+            wrapped_lines = []
+            while len(line) > 80:  # 80 characters per line for wrapping
+                wrapped_lines.append(line[:80])
+                line = line[80:]
+            wrapped_lines.append(line)
+            
+            for wrapped_line in wrapped_lines:
+                if y_position < 100:  # Avoid printing too close to the bottom
+                    c.showPage()
+                    y_position = height - 100
+                    c.setFont("Helvetica", 10)
+                c.drawString(100, y_position, wrapped_line)
+                y_position -= 12  # Adjust line spacing for better readability
+        
+        # Add a line separator between reports
+        c.line(50, y_position, width - 50, y_position)
+        y_position -= 20  # Additional spacing before the next entry
+    
+    c.save()
+    print(f'Report for patient_id {patient_id} has been saved to {pdf_file}')
 
 health_records_directory=os.getenv('HEALTH_RECORDS_DIRECTORY')
 health_records_lookup=f'{health_records_directory}/ehr_lookup.json'
@@ -225,7 +351,7 @@ async def extract_intent_and_content(query:str,intent:str):
     This is the query given by the doctor: 
     {query}\n'''
         output=await gpt_json(update_prompt,300)
-        #print(output)
+        print('json output',output)
         report_json=json.loads(output)
         patient_id_exists=True
         result=search_key_in_json(report_json,'patient id')
@@ -237,32 +363,25 @@ async def extract_intent_and_content(query:str,intent:str):
             for key, value in report_json.items():
                 if key.lower() != "patient details":
                     new_report_json[key] = value
-        #print(new_report_json)
+        else:
+            new_report_json = {
+                "Patient id": result
+            }
+            for key, value in report_json.items():
+                if key.lower() != "patient details":
+                    new_report_json[key] = value
+                    
+        print('patient id exists',patient_id_exists)
+        print('new report',new_report_json)
         report = json_to_formatted_string(new_report_json)
         print("report:\n", report)
-        # patient_id_match = re.search("Patient id: (.+)$", output,re.IGNORECASE|re.MULTILINE)
-        # if patient_id_match:
-        #     patient_id=patient_id_match.group(1)
-        #     print('patient_id',patient_id)
-        #     patient_id_exists=True
-        # else:
-        #     patient_id=None
-        # file_id=uuid.uuid4().hex
-        # file_name=f'{file_id}.txt'
-        # file_path=os.path.join(health_records_directory,file_name)
+        
         if not os.path.exists(health_records_directory):
             os.makedirs(health_records_directory)
         
         file_id=uuid.uuid4().hex
         file_name=f'{file_id}.txt'
         file_path=os.path.join(health_records_directory,file_name)
-        
-        # result =  re.search(r'Patient id: [^\n]*[\r\n]+([^\S\r\n]*.*$)', output, re.IGNORECASE|re.DOTALL)
-        # if result:
-        #     extracted_text = result.group(1)
-        #     print('extracted: ',extracted_text)
-        # else:
-        #     print("No match found.")
         
         return (file_path,report,patient_id_exists)# need to break out the actual output
     else:
@@ -299,6 +418,21 @@ async def search_and_load_summary(attribute_value:str):
          with open(lookup_data[uid]['file_path'],'r') as file:
              records.append(file.read())
      return records
+
+async def extract_id_and_json_report(report:str):
+    summary_prompt = f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be provided with the medical record of a patient as input, and you must convert that medical record to json format.
+    You must write the keys in the json according to the headings and subheadins in the record.
+    You must extract the Patient id from the medical record,if its provided and give that as output separately.
+    If Patient id is not provided in the medical record, you must return an empty string in the output.
+    Your output must be in json format as follows:
+    Patient id: <patient id>
+    Report :<report in json format>
+    
+    The medical report of the patient:
+    {report}'''
+    output=await gpt_json(summary_prompt,1000)
+    print('id and json report', output)
+    return output
 
 async def execute_task_on_records(record, task):
     task_prompt = f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a task by a 
@@ -349,13 +483,7 @@ Intent: <intent of the query>
 This is the query given by the doctor:
 {query}\n
     '''
-    # output_intent=await gpt_processor(intent_prompt,100)
-    # intent_match = re.search(r"^Intent: (\w+)", output_intent, re.MULTILINE)
-    # if intent_match:
-    #     intent = intent_match.group(1)
-    # else:
-    #     intent = None
-    # print('Intent: ',intent)
+    
     output_intent=await gpt_json(intent_prompt,100)
     output_intent=json.loads(output_intent)
     intent=output_intent["Intent"]
@@ -389,88 +517,44 @@ async def save_report(request: Request):
     file_path=data.get('file_path', '')
     print('file_path_prior',file_path)
     intent=data.get('intent','')
+    print('intent',intent)
     #Patient id will be provided-no case where it wont be there
+    output_json=await extract_id_and_json_report(report)
+    output=json.loads(output_json)
+    patient_id=output['Patient id']
+    print('patient id gpt',patient_id)
+    report=output['Report']
+    print('report json gpt',report)
+    entry=1
+    
     #Read the report and find patient id
     patient_id_exists_in_records=False
-    patient_id_match = re.search(r"Patient id: (.+)$", report,re.IGNORECASE|re.MULTILINE)
-    if patient_id_match:
-        patient_id=patient_id_match.group(1)
-        print('patient_id',patient_id)
-        if os.path.exists(health_records_lookup):
-            with open(health_records_lookup,'r') as lookup_file:
-                lookup_data=json.load(lookup_file)
-                for _, value in lookup_data.items(): #Is this O(n)?
-                    if 'patient_id' in value and value['patient_id'] == patient_id:
-                        file_path= value['file_path'] #overwrite existing file path, and dont change the summary
-                        value['entries']=value.get('entries', 1) + 1 #no. of entries to the same record- no updations means a single
-                        patient_id_exists_in_records=True
-                        break
-            with open(health_records_lookup, 'w') as lookup_file:
-                json.dump(lookup_data, lookup_file, indent=4)
+    
+    if patient_id:
+        record_count = await get_patient_record_count(patient_id)
+        if record_count!=0:
+            patient_id_exists_in_records=True
+            entry=record_count+1
     else:
-        patient_id=None
         return {'message':'Patient id is not provided'}
     
     if patient_id_exists_in_records:
-        print('patient record already exists')
-        #Add to existing patient record, no changes to summary required
-        #Regex out the content and remove the patient id
-        result =  re.search(r'Patient id: [^\n]*[\r\n]+([^\S\r\n]*.*$)', report, re.IGNORECASE|re.DOTALL)
-        if result:
-            extracted_text = result.group(1)
-            print('extracted: ',extracted_text)
-        else:
-            print("No match found.")
-         
-        now = datetime.datetime.now()
-        date_format = now.strftime("%d/%m/%Y")
-        time_format = now.strftime("%H:%M")
-        print(file_path)
-        print('extracted: ',extracted_text)
-        with open(file_path,'a') as file:
-            file.write('\n\n')
-            file.write(f'Record Entry: {date_format} {time_format}\n\n')
-            file.write(extracted_text)
-            file.write('\n')
-        print('report saved')
+        print('patient id exists in records')
+        updated_record = await add_record(entry, patient_id, report)
+        print(updated_record)
+        await print_report(patient_id)
     else:
+        print('Patient id doens\'t exist in records, creating a new report if intent is create')
         print(intent)
-        print(intent.lower())
         if intent.lower()=='update':
             print('inside the condition')
             return {'message':'Patient id does not exist in the database'}
-        print('condition failed')
-        #Intent is create
-        file_name = file_path.split('/')[-1]
-        # Now remove the extension '.txt'
-        file_id = file_name.split('.')[0] #required for json
-        #Get the summary for the record
-        summary=await generate_summary(report)
-        #write to file and to the ehr lookup
-        #current date and time
-        now = datetime.datetime.now()
-        date_format = now.strftime("%d/%m/%Y")
-        time_format = now.strftime("%H:%M")
-        with open(file_path,'w') as file:
-            file.write(f'Record Entry: {date_format} {time_format}\n\n')
-            file.write(report)
-            file.write('\n')
-        print('report saved')
-
-        if os.path.exists(health_records_lookup):
-            with open(health_records_lookup,'r') as lookup_file:
-                lookup_data=json.load(lookup_file)
-        else:
-            lookup_data={}
         
-        lookup_data[file_id] = {
-            "file_path": file_path,
-            "patient_id":patient_id,
-             "entries":1,
-             "summary": summary
-        }
-        with open(health_records_lookup,'w') as lookup_file:
-            json.dump(lookup_data, lookup_file, indent=4)    
+        created_record = await add_record(entry, patient_id, report)
+        print(created_record)
+        
+        await print_report(patient_id)
+      
   
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

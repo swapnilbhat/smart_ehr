@@ -5,3 +5,7 @@ health_records/
 health_records/*
 
 test.py
+
+*.pdf
+
+Backend/mongo_test.py

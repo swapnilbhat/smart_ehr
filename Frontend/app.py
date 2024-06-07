@@ -63,13 +63,14 @@ def save_report():
 def save_update_report():
     response = requests.post(f"{FASTAPI_ENDPOINT}/save_report/", json={'report': st.session_state['edited_updated_report'],'file_path':  st.session_state['file_path'],'intent':st.session_state['intent']})
     if response.status_code == 200:
-        response_data=response.json()
-        if response_data['message']=='Patient id is not provided':
-            st.warning('Patient id not provided')
-        elif response_data['message']=='Patient id does not exist in the database':
-            st.warning('Patient id does not exist in the database')
-            st.warning('You need to create a new record for the patient. Please check whether the input has sufficient information')
-            #st.session_state['create_new_report_block']=True
+        if response.json():
+            response_data=response.json()
+            if response_data['message']=='Patient id is not provided':
+                st.warning('Patient id not provided')
+            elif response_data['message']=='Patient id does not exist in the database':
+                st.warning('Patient id does not exist in the database')
+                st.warning('You need to create a new record for the patient. Please check whether the input has sufficient information')
+                #st.session_state['create_new_report_block']=True
         else:
             st.success("Report saved successfully")
     else:
