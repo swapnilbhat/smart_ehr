@@ -48,6 +48,7 @@ async def add_record(entry,patient_id,report):
     time_format = now.strftime("%H:%M")
     report_mod = {
         'Record Entry': {
+            'Datetime':now,
             'Date': date_format,
             'Time': time_format
         }
@@ -313,34 +314,41 @@ async def extract_intent_and_content(query:str,intent:str):
     elif intent.lower()=='read':
         read_prompt=f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a 
          Doctor, where you are asked to read a medical record for a patient.
-         The doctor wants you to first search for a patient based on a specifc attribute(like Name, Age, Surgical Procedure,etc) and the value of that attribute(like Name is Arjun, so Name is the attribute and Arjun is the value) in the Electronic Health Records, and retrive his data. After retrieval the doctor wants you to perfom a task on the retrieved record.
-         Examples of tasks are: Retrieve Blood Pressure of the patient, Read glucose levels,etc
-         You need to write the output in the following format:
-         Name of Attribute:<search attribute mentioned by the doctor>
-         Value of the Attribute:<value of the attribute mentioned by the doctor>
-         Task: <task required to be perfomed on the data, must not contain the Name or value of the attribute.>
+         The records are present in a MongoDB database, so the text query needs to be converted into a MongoDB query.
+         Every record has the following fields in MongoDB:
+         entry: This is the visit number
+         patient_id: Unique id of each patient
+         report: Contains the entire medical report of the patient
+         report.Record Entry.Datetime: This is the datetime at which the report was created
+         report.Chief Complaints.Complaints : Contains the problems the patient was feeling when they went to the doctor
+         Your output must be the MongoDB query in JSON format:
+         db_query:<MongoDB query>
+         
          This is the query given by the doctor: 
          {query}\n'''
-        output=await gpt_processor(read_prompt,100)
-        attribute_name_search=re.search("^Name of Attribute: (.+)$",output, re.MULTILINE)
-        if attribute_name_search:
-            attribute_name = attribute_name_search.group(1)
-        else:
-            attribute_name = None
+        output=await gpt_json(read_prompt,100)
+        print('db_output',output)
+        output=json.loads(output)
+        
+        # attribute_name_search=re.search("^Name of Attribute: (.+)$",output, re.MULTILINE)
+        # if attribute_name_search:
+        #     attribute_name = attribute_name_search.group(1)
+        # else:
+        #     attribute_name = None
             
-        attribute_value_search=re.search("^Value of the Attribute: (.+)$",output, re.MULTILINE)
-        if attribute_value_search:
-            attribute_value = attribute_value_search.group(1)
-        else:
-            attribute_value = None
+        # attribute_value_search=re.search("^Value of the Attribute: (.+)$",output, re.MULTILINE)
+        # if attribute_value_search:
+        #     attribute_value = attribute_value_search.group(1)
+        # else:
+        #     attribute_value = None
         
-        task_search=re.search("^Task: (.+)$",output, re.MULTILINE)
-        if task_search:
-            task = task_search.group(1)
-        else:
-            task = None
+        # task_search=re.search("^Task: (.+)$",output, re.MULTILINE)
+        # if task_search:
+        #     task = task_search.group(1)
+        # else:
+        #     task = None
         
-        return (attribute_name,attribute_value,task)  
+        return   
     elif intent.lower()=='update': 
         update_prompt=f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a 
          Doctor, where you are asked to update the medical record of an existing patient. You need to extract information from the query and structure it into json format with various headings and subheadings that occur in a medical record, like:
@@ -494,16 +502,16 @@ This is the query given by the doctor:
     if intent.lower()=='create':
         #send the report to streamlit for the user to edit
         return {"Intent": intent,"Generated Report": output_task[1],"File Path": output_task[0],"Patient id exists":output_task[2]}
-    # elif intent.lower()=='read':
-    #     records=await search_and_load_summary(output_task[1])
-    #     if records:
-    #         #print(records)
-    #         #Taking multiple records as of now
-    #         result=await execute_task_on_records(records[0],output_task[2])   
-    #         print(result)
-    #     else:
-    #         print('No matching records found')
-    #     return{"read result":result}
+    elif intent.lower()=='read':
+        records=await search_and_load_summary(output_task[1])
+        if records:
+            #print(records)
+            #Taking multiple records as of now
+            result=await execute_task_on_records(records[0],output_task[2])   
+            print(result)
+        else:
+            print('No matching records found')
+        return{"read result":result}
     elif intent.lower()=='update':
         return {"Intent": intent,"File Path":output_task[0],"Updated Report": output_task[1],"Patient id exists":output_task[2]}
     # else:
@@ -557,4 +565,4 @@ async def save_report(request: Request):
       
   
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)

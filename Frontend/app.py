@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 
-FASTAPI_ENDPOINT = "http://localhost:8000"
+FASTAPI_ENDPOINT = "http://localhost:8001"
 
 st.set_page_config(page_title="EHR Assistant", page_icon="🔍", initial_sidebar_state="collapsed")
 

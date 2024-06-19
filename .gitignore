@@ -9,3 +9,6 @@ test.py
 *.pdf
 
 Backend/mongo_test.py
+
+Backend/results.txt
+
