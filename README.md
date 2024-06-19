@@ -25,6 +25,14 @@ In order to run, follow the instruction below:
 - `cd health_records`
 - Use `ls` and `cat` commands to look into the file content
 
+## Retrival system
+- `Backend/create_index.py` is used to create indexes for full text search of the document
+- `Backend/read_mongo.py` is a standalone backend for retrieving data from the database
+
+## MongoDB setup on ubuntu
+Follow the guide:
+https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/
+
 ## Current Implementation
 - You can create a new record, and edit it in the web interface before saving it, to ensure validity
 - You can read existing records, and by entering a search query and get releavant information from the records without manually scanning through them
