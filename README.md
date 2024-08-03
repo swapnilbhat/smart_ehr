@@ -14,8 +14,8 @@ In order to run, follow the instruction below:
 - Tesseract for Windows
 
 ## Running the Frontend
-`cd react_frontend`
-`npm run dev`
+- `cd react_frontend`
+- `npm run dev`
 
 ## Backend-Running on Windows
 `python fast_api_backend/fast_api.py`
