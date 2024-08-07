@@ -17,7 +17,7 @@ const Sidebar = ({refreshReports}) => {
   return (
     <div className="w-64 bg-gray-800 p-4 flex flex-col">
       <div className="flex-shrink-0">
-        <h1 className="text-2xl font-bold">Your Reports</h1>
+        <h1 className="text-2xl font-bold">Recent Reports</h1>
       </div>
      <ul className="flex flex-col space-y-2 mt-4">
         {reports.map((report, index) => (

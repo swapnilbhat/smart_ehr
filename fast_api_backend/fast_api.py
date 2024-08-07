@@ -240,7 +240,7 @@ def json_to_formatted_string(json_obj):
 
             
 async def gpt_json(prompt,max_tokens):
-    client = OpenAI(api_key='')
+    client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
     messages = [
            {"role": "system", "content": "You are a helpful assistant designed to output JSON."},
             {"role": "user", "content":  f'''{prompt}'''},
@@ -540,8 +540,11 @@ async def save_request(request: Request):
 @app.get("/reports")
 async def list_reports():
     files = os.listdir(REPORTS_DIR)
-    print(files)
-    return {"reports": files}
+    files_with_time = [(file, os.path.getmtime(os.path.join(REPORTS_DIR, file))) for file in files]
+    sorted_files = sorted(files_with_time, key=lambda x: x[1], reverse=True)
+    recent_files = [file for file, _ in sorted_files[:12]]
+    print(recent_files)
+    return {"reports": recent_files}
 
 @app.get("/reports/{report_name}")
 async def get_report(report_name: str):
