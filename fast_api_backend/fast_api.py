@@ -279,7 +279,7 @@ async def extract_intent_and_content(query:str,intent:str):
     if intent.lower() == 'create':
         create_prompt=f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a 
          Doctor, where you are asked to create a medical record for a patient.
-    You need to create a Medical record of the patient based on the information provided by the 
+    You must create a Medical record of the patient based only on the information provided by the 
      doctor, and structure it into a json format with headings and subheadings along with the date mentioned in the query.
     Examples of headings and its subheadings:
     Heading: Patient Information ; Subheadings: Patient id,Name, Age, Gender, Date of Birth, Address, Phone Number, Blood Group, etc
@@ -292,10 +292,11 @@ async def extract_intent_and_content(query:str,intent:str):
     Heading: Discharge Instructions
     Heading: Signature     
     The above list is not exhaustive and you can create Headings on your own to group the text.You must add content under the relevant 
-    heading based on how it appears in the query. 
+    heading based on how it appears in the query.
+    You must strictly use only the information provided in the query. 
     You must not mention a Heading or Subheading in the output, if its information isnt given in the query.
     You must clearly mention numerical results of the test, and you must structure the report chronologically. 
-    You must give the medical record for the patient as output  
+    You must give the medical record for the patient as output.  
     This is the query given by the doctor: 
     {query}\n'''
         output=await gpt_json(create_prompt,1000)
@@ -394,6 +395,7 @@ async def extract_intent_and_content(query:str,intent:str):
          Doctor, where you are asked to update the medical record of an existing patient. You need to extract information from the query and structure it into json format with various headings and subheadings that occur in a medical record, like:
         Patient details(Name, Patient id, age,etc), Test Reports and Results, Medical History, Prescription, Condition Improvements, Checks and Follow up,etc.
          You must keep the Patient id field blank, in case it is not provided.
+         You must strictly use only the information provided in the query.
          You must not mention a Heading or Subheading in the output, if its information isnt given in the query.
          You must clearly mention numerical results of the test, and you must structure the report chronologically.
     This is the query given by the doctor: 
