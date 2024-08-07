@@ -548,13 +548,25 @@ async def list_reports():
     print(recent_files)
     return {"reports": recent_files}
 
+@app.get("/reports_all")
+async def list_reports():
+    files = os.listdir(REPORTS_DIR)
+    return {"reports": files}
+
 @app.get("/reports/{report_name}")
 async def get_report(report_name: str):
     report_path = os.path.join(REPORTS_DIR, report_name)
     if os.path.exists(report_path):
-        return FileResponse(report_path, media_type='application/pdf', filename=report_name)
+        return FileResponse(report_path, media_type='application/pdf', filename=report_name,headers={"Content-Disposition": "inline"})
     else:
         return {"error": "Report not found"}
+
+@app.post("/filter_reports")
+async def filter_reports(request: Request):
+    data = await request.json()
+    query = data['text'].strip()
+    print(query)
+    return {'output': query}
 
 @app.post('/process_file')
 async def process_file(file: UploadFile = File(...)):

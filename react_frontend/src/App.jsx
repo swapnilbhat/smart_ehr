@@ -3,6 +3,7 @@ import Navbar from "./components/Navbar";
 import Information from "./components/Information";
 import Chatbar from "./components/Chatbar";
 import Sidebar from "./components/Sidebar";
+import Records from "./components/Records";
 import { BrowserRouter as Router, Route,Routes } from "react-router-dom";
 
 function App(){
@@ -28,8 +29,10 @@ function App(){
         </div>
       </div>}/>
       <Route path='/records' element={<div className="flex h-screen bg-gray-900 text-white">
+        <Sidebar refreshReports={refreshReports} />
         <div className="flex-1">
           <Navbar />
+          <Records/>
         </div>
       </div>}/>
       </Routes>
