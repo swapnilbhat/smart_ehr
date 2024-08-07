@@ -3,6 +3,7 @@ import Navbar from "./components/Navbar";
 import Information from "./components/Information";
 import Chatbar from "./components/Chatbar";
 import Sidebar from "./components/Sidebar";
+import { BrowserRouter as Router, Route,Routes } from "react-router-dom";
 
 function App(){
   const [messages,setMessages]=useState([])
@@ -16,27 +17,25 @@ function App(){
     setMessages((prevMessages) => [...prevMessages, message]);
   }
   return (
-    <div className="flex h-screen bg-gray-900 text-white">
-      <Sidebar refreshReports={refreshReports} />
-      <div className="flex-1">
-        <Navbar />
-          <Information messages={messages} />
-        <Chatbar onSendMessage={handleSendMessage} onReportCreated={handleRefreshReports} />
-      </div>
-    </div>
+    <Router>
+      <Routes>
+        <Route path='/' element={<div className="flex h-screen bg-gray-900 text-white">
+        <Sidebar refreshReports={refreshReports} />
+        <div className="flex-1">
+          <Navbar />
+            <Information messages={messages} />
+          <Chatbar onSendMessage={handleSendMessage} onReportCreated={handleRefreshReports} />
+        </div>
+      </div>}/>
+      <Route path='/records' element={<div className="flex h-screen bg-gray-900 text-white">
+        <div className="flex-1">
+          <Navbar />
+        </div>
+      </div>}/>
+      </Routes>
+  </Router>
+    
   );
-  // return (
-  //   <div className="flex h-screen bg-gray-900 text-white">
-  //     <Sidebar refreshReports={refreshReports} />
-  //     <div className="flex-1 flex flex-col ml-64">
-  //       <Navbar />
-  //       <div className="flex-1 flex overflow-hidden">
-  //         <Information messages={messages} />
-  //         </div>
-  //       <Chatbar onSendMessage={handleSendMessage} onReportCreated={handleRefreshReports} />
-  //     </div>
-  //   </div>
-  // );
 }
 export default App;
 
