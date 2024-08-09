@@ -338,6 +338,7 @@ async def extract_intent_and_content(query:str,intent:str):
         print('output json',output)
         search_attribute = output.get('value')
         task = output.get('task')
+        print('search attribute mongodb',search_attribute)
         # Perform text search in MongoDB
         search_query = {"$text": {"$search": search_attribute}}
         cursor = ehr_collection.find(search_query)
@@ -378,6 +379,7 @@ async def extract_intent_and_content(query:str,intent:str):
                     output = json_element 
                 outputs.append(output)
             output='\n'.join(outputs)
+            print('gpt output',output)
             print('out 1')
         else:
             # output=json_to_formatted_string(result_json)
@@ -565,8 +567,38 @@ async def get_report(report_name: str):
 async def filter_reports(request: Request):
     data = await request.json()
     query = data['text'].strip()
-    print(query)
-    return {'output': query}
+    print('query',query)
+    query_split=query.split(',')
+    print(query_split)
+    # search_attribute=''
+    # for item in query_split:
+    #     search_attribute+=item
+    #     search_attribute+=" "
+    # print(search_attribute)
+    search_attribute = ' '.join([f"\"{item.strip()}\"" for item in query_split])
+    print(search_attribute)
+    search_query = {"$text": {"$search": search_attribute}}
+    cursor = ehr_collection.find(search_query)
+    results = []
+    patient_ids = set()
+    print('cursor',cursor)
+    async for document in cursor:
+        json_doc = ehr_helper(document)
+        results.append(json_doc)
+        patient_ids.add(json_doc['patient_id'])
+    print('patient ids',patient_ids)
+    print('patient ids length',len(patient_ids))
+    print(results)
+    files = os.listdir(REPORTS_DIR)
+    print(files)
+    #Logic for getting filtered files- this can change if file name doesnt contain patient id
+    filtered_files=[]
+    for file in files:
+        file_id=file.split('_')
+        if file_id[0] in patient_ids:
+            filtered_files.append(file)
+    print(filtered_files)
+    return {"reports": filtered_files}
 
 @app.post('/process_file')
 async def process_file(file: UploadFile = File(...)):

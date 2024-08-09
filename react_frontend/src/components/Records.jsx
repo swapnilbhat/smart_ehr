@@ -3,6 +3,8 @@ import axios from 'axios';
 const Records = () => {
     const [input, setInput] = useState('');
     const [reports, setReports] = useState([]);
+    const [initialReports, setInitialReports] = useState([]);
+    const [fetchFiltered, setFetchFiltered] = useState(false);
 
     useEffect(() => {
         // Fetch the list of reports from the backend
@@ -10,6 +12,7 @@ const Records = () => {
         try {
             const response = await axios.get('http://localhost:8000/reports_all');
             setReports(response.data.reports);
+            setInitialReports(response.data.reports);
         } catch (error) {
             console.error('Error fetching reports:', error);
         }
@@ -17,25 +20,39 @@ const Records = () => {
 
         fetchReports();
     }, []);
+      // Fetch filtered reports when input changes or when the Enter key is pressed
+    useEffect(() => {
+      const fetchFilteredReports = async () => {
+          try {
+              console.log('input',input)
+              const response = await axios.post('http://localhost:8000/filter_reports', { 'text': input });
+              const result = response.data;
+              console.log('result',result)
+              setReports(result.reports); // Update reports based on filtering
+          } catch (error) {
+              console.error('Error fetching filtered reports:', error);
+          }
+      };
+
+      if (fetchFiltered) {
+          fetchFilteredReports();
+          setFetchFiltered(false); // Reset the state
+      }
+  }, [fetchFiltered, input]);
 
     const handleReportClick = (reportName) => {
         // Open the PDF file in a new tab
         window.open(`http://localhost:8000/reports/${reportName}`, '_blank');
       };
     
-    const handleInputEnterPress=async ()=>{
-        if(input.trim()){
-            try {
-            console.log(input)
-            const response = await axios.post('http://localhost:8000/filter_reports', { 'text': input });
-            const result=response.data
-            console.log(result.output)
+      const handleInputEnterPress = () => {
+        if (input.trim()) {
+            setFetchFiltered(true); // Set state to trigger fetching filtered reports
+        } else {
+            // Reset reports to initial reports when input is cleared
+            setReports(initialReports);
         }
-        catch(error){
-            console.error('Error fetching filtered reports:', error);
-        }
-        }
-    }
+    };
 
   return (
     <div className='flex flex-col items-center justify-center mt-2'>
@@ -61,7 +78,7 @@ const Records = () => {
             
             <div
               key={index}
-              className="p-4 bg-gray-700 shadow rounded-lg cursor-pointer"
+              className="p-4 py-12 px-12 bg-gray-700 shadow rounded-lg cursor-pointer"
               onClick={() => handleReportClick(report)}
             >
               Patient Id: {patientId}
