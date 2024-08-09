@@ -3,27 +3,26 @@ An AI powered system to create, read and get recommendations from patient health
 
 In order to run, follow the instruction below:
 
-## Install the requirements
-`pip install streamlit fastapi uvicorn openai aiohttp`
+## Install the requirements(Inside virtual env and frontend)
+- Inside python virtual environment- Running the Backend
+`pip install fastapi uvicorn openai aiohttp motor reportlab pdf2image pytesseract`
+- Inside react frontend directory
+`npm install`
 
-## Frontend
-`streamlit run Frontend/app.py`
+## Installations for OCR
+- Poppler for Windows
+- Tesseract for Windows
 
-## Backend
-`python3 Backend/fast_api.py`
-## Install Docker desktop on windows:
-- Visit the url: `https://docs.docker.com/desktop/install/windows-install/`
-- In case of a prompt select the WSL environment
-## Steps to run the docker container- commands should be run in ubuntu terminal:
-- `docker load < smart_ehr.tar`
-- Verify that the image is created, run `docker images`
-- `sudo docker run -d -p 8501:8501 -p 8000:8000 --name smart_ehr_app smart_ehr`
-- Open `localhost:8501` on your browser to see the streamlit interface
+## Running the Frontend
+- `cd react_frontend`
+- `npm run dev`
 
-## Check the reports inside the docker container- commands should be run in ubuntu terminal:
-- `docker exec -it smart_ehr_app bash` opens up the terminal inside the docker
-- `cd health_records`
-- Use `ls` and `cat` commands to look into the file content
+## Backend-Running on Windows
+`python fast_api_backend/fast_api.py`
+
+## MongoDB setup for winows
+Follow the guide:
+https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-windows/
 
 ## Current Implementation
 - You can create a new record, and edit it in the web interface before saving it, to ensure validity
