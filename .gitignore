@@ -10,5 +10,7 @@ fast_api_backend/reports
 
 react_frontend/node_modules
 
+react_frontend/.vite
+
 keys.txt
 
