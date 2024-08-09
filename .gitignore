@@ -6,6 +6,9 @@ fast_api_backend/__pycache__
 
 fast_api_backend/report_reading.py
 
+fast_api_backend/reports
+
 react_frontend/node_modules
 
 keys.txt
+

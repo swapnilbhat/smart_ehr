@@ -125,7 +125,11 @@ async def print_report(patient_id):
     for record in records:
         entry = record['entry']
         report = record['report']
-        
+        print('print report',report)
+        #Remove Datetime key and object
+        if 'Datetime' in report['Record Entry']:
+            del report['Record Entry']['Datetime']
+        print('print report mod',report)
         report = json_to_formatted_string(report)
         
         # Create a new page for each entry
@@ -149,10 +153,10 @@ async def print_report(patient_id):
         # Draw the entry number
         c.setFont("Helvetica", 12)
         c.line(margin_left, height - margin_top - 0.3 * inch, width - margin_right, height - margin_top - 0.3 * inch)
-        c.drawString(margin_left, height - margin_top - 0.7 * inch, f"Entry Number: {entry}")
-
+        c.drawString(margin_left, height - margin_top - 0.7 * inch, f"Patient id: {patient_id}")
+        c.drawString(margin_left, height - margin_top - 1* inch, f"Entry Number: {entry}")
         # Print the report content
-        y_position = height - margin_top - 1.2*inch
+        y_position = height - margin_top - 1.4*inch
         text_lines = report.split('\n')
         c.setFont("Helvetica", 12)
         
@@ -167,7 +171,7 @@ async def print_report(patient_id):
             for wrapped_line in wrapped_lines:
                 if y_position < margin_bottom:  # Avoid printing too close to the bottom
                     c.showPage()
-                    y_position = height - margin_top - 1.4*inch
+                    y_position = height - margin_top - 1.6*inch
                     # Draw the header again
                     #c.drawImage(HEADER_IMAGE, margin_left, height - margin_top, width=2*inch, preserveAspectRatio=True, mask='auto')
                     try:
