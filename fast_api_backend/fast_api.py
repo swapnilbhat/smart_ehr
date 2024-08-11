@@ -396,43 +396,43 @@ async def extract_intent_and_content(query:str,intent:str):
             outputs.append(output)
         #print('output',output)
         return output 
-    elif intent.lower()=='update': 
-        update_prompt=f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a 
-         Doctor, where you are asked to update the medical record of an existing patient. You need to extract information from the query and structure it into json format with various headings and subheadings that occur in a medical record, like:
-        Patient details(Name, Patient id, age,etc), Test Reports and Results, Medical History, Prescription, Condition Improvements, Checks and Follow up,etc.
-         You must keep the Patient id field blank, in case it is not provided.
-         You must strictly use only the information provided in the query.
-         You must not mention a Heading or Subheading in the output, if its information isnt given in the query.
-         You must clearly mention numerical results of the test, and you must structure the report chronologically.
-    This is the query given by the doctor: 
-    {query}\n'''
-        output=await gpt_json(update_prompt,300)
-        print('json output',output)
-        report_json=json.loads(output)
-        patient_id_exists=True
-        result=search_key_in_json(report_json,'patient id')
-        if not result:
-            patient_id_exists=False
-            new_report_json = {
-                "Patient id": result
-            }
-            for key, value in report_json.items():
-                if key.lower() != "patient details":
-                    new_report_json[key] = value
-        else:
-            new_report_json = {
-                "Patient id": result
-            }
-            for key, value in report_json.items():
-                if key.lower() != "patient details":
-                    new_report_json[key] = value
+    # elif intent.lower()=='update': 
+    #     update_prompt=f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a 
+    #      Doctor, where you are asked to update the medical record of an existing patient. You need to extract information from the query and structure it into json format with various headings and subheadings that occur in a medical record, like:
+    #     Patient details(Name, Patient id, age,etc), Test Reports and Results, Medical History, Prescription, Condition Improvements, Checks and Follow up,etc.
+    #      You must keep the Patient id field blank, in case it is not provided.
+    #      You must strictly use only the information provided in the query.
+    #      You must not mention a Heading or Subheading in the output, if its information isnt given in the query.
+    #      You must clearly mention numerical results of the test, and you must structure the report chronologically.
+    # This is the query given by the doctor: 
+    # {query}\n'''
+    #     output=await gpt_json(update_prompt,300)
+    #     print('json output',output)
+    #     report_json=json.loads(output)
+    #     patient_id_exists=True
+    #     result=search_key_in_json(report_json,'patient id')
+    #     if not result:
+    #         patient_id_exists=False
+    #         new_report_json = {
+    #             "Patient id": result
+    #         }
+    #         for key, value in report_json.items():
+    #             if key.lower() != "patient details":
+    #                 new_report_json[key] = value
+    #     else:
+    #         new_report_json = {
+    #             "Patient id": result
+    #         }
+    #         for key, value in report_json.items():
+    #             if key.lower() != "patient details":
+    #                 new_report_json[key] = value
                     
-        print('patient id exists',patient_id_exists)
-        print('new report',new_report_json)
-        report = json_to_formatted_string(new_report_json)
-        print("report:\n", report)
+    #     print('patient id exists',patient_id_exists)
+    #     print('new report',new_report_json)
+    #     report = json_to_formatted_string(new_report_json)
+    #     print("report:\n", report)
         
-        return (report,patient_id_exists)# need to break out the actual output
+    #     return (report,patient_id_exists)# need to break out the actual output
     else:
         return ('No predefined intents match')
         
@@ -458,23 +458,18 @@ async def process_request(request: Request):
     query = data['text'].strip()
     #print(query)
     #Intent classification here
-    intent_prompt=f'''You are an AI designed to help doctors automate Electronic Health Records (EHR). You will be given a query by a doctor, which could involve creating a new medical record for a patient, reading existing medical records for a patient, updating the medical record for a patient, or deleting the medical records for a patient.
+    intent_prompt=f'''You are an AI designed to help doctors automate Electronic Health Records (EHR). You will be given a query by a doctor, which could involve creating a medical record for a patient or reading existing medical records for a patient.
 
-Your task is to classify the intent of the query into one of the following categories: Create, Read, Update, or Delete.
+Your task is to classify the intent of the query into one of the following categories: Create or Read.
 
-Please use the following criteria to classify the intent:
+You must Use the following criteria to classify the intent:
 
-- **Create:** The query asks to create a new medical record.
-  Example: "Create a new record for John Doe with the diagnosis of hypertension."
+- **Create:** The query asks to create a new medical record, or modify or add or update information to an existing record.
+  Example 1: "Create a new record for John Doe with the diagnosis of hypertension."
+  Example 2: "Patient Mathew simons, has reported back with the following test results. add this to the record."
 
 - **Read:** The query asks to retrieve or read existing medical records without making any changes.
   Example: "Retrieve the medical history for Jane Smith."
-
-- **Update:** The query asks to modify or add or update some information. This also applies if the patient came for a follow up.
-  Example: "Update the diagnosis for John Doe to include diabetes."
-
-- **Delete:** The query asks to remove or delete existing medical records or specific information within them.
-  Example: "Delete the medical record for patient ID 12345."
 
 In your output, you must write the intent clearly as:
 Intent: <intent of the query>
@@ -493,8 +488,8 @@ This is the query given by the doctor:
         return {"intent": intent,"create_output": output_task[0],"id_exists":output_task[1]}
     elif intent.lower()=='read':
         return {"intent": intent, "read_output":output_task}
-    elif intent.lower()=='update':
-        return {"intent": intent,"update_output": output_task[0],"id_exists":output_task[1]}
+    # elif intent.lower()=='update':
+    #     return {"intent": intent,"update_output": output_task[0],"id_exists":output_task[1]}
     else:
         return{"intent":'undefined'}
 
