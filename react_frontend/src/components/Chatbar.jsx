@@ -17,6 +17,7 @@ const Chatbar = ({ onSendMessage, onReportCreated }) => {
   const [modalCreateIsOpen,setModalCreateIsOpen]=useState(false); //another state is save_report
   const [editCreateText, setEditCreateText] = useState('');
   const [responseIntent, setResponseIntent] = useState('');
+  const [isInvestigation,setIsInvestigation]=useState(false);
   const fileInputRef = useRef(null);
 
   const handleAttachmentClick = () => {
@@ -41,6 +42,7 @@ const Chatbar = ({ onSendMessage, onReportCreated }) => {
         setModalCreateIsOpen(true)
         setEditCreateText(response.data.text)
         setResponseIntent('create')
+        setIsInvestigation(true);
       } catch (error) {
         console.error('Error uploading file:', error);
       }
@@ -159,7 +161,7 @@ const Chatbar = ({ onSendMessage, onReportCreated }) => {
 
   const handleSendCreateMessageToBackend=async(message,intent)=>{
     try{
-      const response = await axios.post('http://localhost:8000/save_request', { 'text': message, 'intent': intent  });
+      const response = await axios.post('http://localhost:8000/save_request', { 'text': message, 'intent': intent, 'isInvestigation': isInvestigation });
       
       const botReply = {
         sender: 'Assistant',

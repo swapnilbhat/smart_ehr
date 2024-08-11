@@ -8,7 +8,6 @@ const Navbar = () => {
       <ul className='flex'>
         <li className='p-4'><Link to="/">Assistant</Link></li>
         <li className='p-4'><Link to="/records">Records</Link></li>
-        <li className='p-4'>Notes</li>
       </ul>
     </div>
   )

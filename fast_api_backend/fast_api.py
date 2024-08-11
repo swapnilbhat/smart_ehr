@@ -39,6 +39,8 @@ database = client.health_records
 ehr_collection = database.get_collection("ehr_2")
 patient_lookup=database.get_collection("patient_lookup_2")
 REPORTS_DIR = 'reports/'
+investigation_collection=database.get_collection("investigations")
+investigation_lookup=database.get_collection("investigation_lookup")
 # Pydantic model for EHR
 class EHRModel(BaseModel):
     entry: int
@@ -62,144 +64,286 @@ def ehr_helper(ehr) -> dict:
 
 # Insert a document into the MongoDB collection
 #@app.post("/add_record/", response_model=EHRModel)
-async def add_record(entry,patient_id,report):
-    now = datetime.datetime.now()
-    date_format = now.strftime("%d/%m/%Y")
-    time_format = now.strftime("%H:%M")
-    report_mod = {
-        'Record Entry': {
-            'Datetime':now,
-            'Date': date_format,
-            'Time': time_format
+async def add_record(entry,patient_id,report,isInvestigation=False):
+    if isInvestigation:
+        now = datetime.datetime.now()
+        date_format = now.strftime("%d/%m/%Y")
+        time_format = now.strftime("%H:%M")
+        report_mod = {
+            'Record Entry': {
+                'Datetime':now,
+                'Date': date_format,
+                'Time': time_format
+            }
         }
-    }
-    report_mod.update(report)
-    # Create the record to be inserted
-    record = {
-        'entry': entry,
-        'patient_id': patient_id,
-        'report': report_mod
-    }
-    new_record = await ehr_collection.insert_one(record)
-    print(f'Record added for patient_id: {patient_id}')
-    # Update the lookup table
-    lookup_result = await patient_lookup.update_one(
-        {'patient_id': patient_id},
-        {'$inc': {'record_count': 1}},
-        upsert=True
-    )
-    created_record = await ehr_collection.find_one({"_id": new_record.inserted_id})
-    
-    return created_record
-
-async def get_patient_record_count(patient_id):
-    patient_record = await patient_lookup.find_one({'patient_id': patient_id})
-    if patient_record:
-        return patient_record['record_count']
+        report_mod.update(report)
+        # Create the record to be inserted
+        record = {
+            'entry': entry,
+            'patient_id': patient_id,
+            'report': report_mod
+        }
+        new_record = await investigation_collection.insert_one(record)
+        print(f'Record added for patient_id: {patient_id}')
+        # Update the lookup table
+        lookup_result = await investigation_lookup.update_one(
+            {'patient_id': patient_id},
+            {'$inc': {'record_count': 1}},
+            upsert=True
+        )
+        created_record = await investigation_collection.find_one({"_id": new_record.inserted_id})
+        
+        return created_record
     else:
-        return 0
-    
-async def print_report(patient_id):
-    # Retrieve all reports for the given patient_id
-    records = await ehr_collection.find({'patient_id': patient_id}).sort('entry').to_list(None)
-    # Check if records exist
-    if not records:
-        print(f'No records found for patient_id: {patient_id}')
-        return
-    
-    print('found records')
-    # Create a PDF document
-    HEADER_IMAGE='./kem_logo.png'
-    pdf_file = f'{REPORTS_DIR}{patient_id}_report.pdf'
-    c = canvas.Canvas(pdf_file, pagesize=letter)
-    width, height = letter
-
-    # Define margins
-    margin_left = inch
-    margin_right = inch
-    margin_top = inch
-    margin_bottom = inch
-
-    first_entry = True  # Flag to check for the first entry
-
-    for record in records:
-        entry = record['entry']
-        report = record['report']
-        print('print report',report)
-        #Remove Datetime key and object
-        if 'Datetime' in report['Record Entry']:
-            del report['Record Entry']['Datetime']
-        print('print report mod',report)
-        report = json_to_formatted_string(report)
+        now = datetime.datetime.now()
+        date_format = now.strftime("%d/%m/%Y")
+        time_format = now.strftime("%H:%M")
+        report_mod = {
+            'Record Entry': {
+                'Datetime':now,
+                'Date': date_format,
+                'Time': time_format
+            }
+        }
+        report_mod.update(report)
+        # Create the record to be inserted
+        record = {
+            'entry': entry,
+            'patient_id': patient_id,
+            'report': report_mod
+        }
+        new_record = await ehr_collection.insert_one(record)
+        print(f'Record added for patient_id: {patient_id}')
+        # Update the lookup table
+        lookup_result = await patient_lookup.update_one(
+            {'patient_id': patient_id},
+            {'$inc': {'record_count': 1}},
+            upsert=True
+        )
+        created_record = await ehr_collection.find_one({"_id": new_record.inserted_id})
         
-        # Create a new page for each entry
-        if not first_entry:
-            c.showPage()  # Create a new page for each subsequent entry
-        first_entry = False
+        return created_record
 
-        # Draw the header
-        #c.drawImage(HEADER_IMAGE, margin_left, height - margin_top, width=2*inch, preserveAspectRatio=True, mask='auto')
-        try:
-            c.drawImage(HEADER_IMAGE, margin_left, height - margin_top -1.8*inch, width=1*inch, preserveAspectRatio=True, mask='auto')
-        except Exception as e:
-            print(f"Error loading image: {e}")
-        c.setFont("Helvetica-Bold", 14)
-        #c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Your Report Header Text")
-        c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.5 * inch, "Arista Surge Medical Center")
-        c.setFont("Helvetica", 12)
-        c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "123 Medical Way, Health City, CA 12345")
-        c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
-
-        # Draw the entry number
-        c.setFont("Helvetica", 12)
-        c.line(margin_left, height - margin_top - 0.3 * inch, width - margin_right, height - margin_top - 0.3 * inch)
-        c.drawString(margin_left, height - margin_top - 0.7 * inch, f"Patient id: {patient_id}")
-        c.drawString(margin_left, height - margin_top - 1* inch, f"Entry Number: {entry}")
-        # Print the report content
-        y_position = height - margin_top - 1.4*inch
-        text_lines = report.split('\n')
-        c.setFont("Helvetica", 12)
+async def get_patient_record_count(patient_id,isInvestigation=False):
+    if isInvestigation:
+        patient_record = await investigation_lookup.find_one({'patient_id': patient_id})
+        if patient_record:
+            return patient_record['record_count']
+        else:
+            return 0
+    else:
+        patient_record = await patient_lookup.find_one({'patient_id': patient_id})
+        if patient_record:
+            return patient_record['record_count']
+        else:
+            return 0
+    
+async def print_report(patient_id,isInvestigation=False):
+    
+    if isInvestigation:
+        #Investigation
+        # Retrieve all reports for the given patient_id
+        records = await investigation_collection.find({'patient_id': patient_id}).sort('entry').to_list(None)
+        # Check if records exist
+        if not records:
+            print(f'No records found for patient_id: {patient_id}')
+            return
         
-        for line in text_lines:
-            # Ensure the text wraps if it's too long
-            wrapped_lines = []
-            while len(line) > 80:  # 80 characters per line for wrapping
-                wrapped_lines.append(line[:80])
-                line = line[80:]
-            wrapped_lines.append(line)
+        print('found records')
+        # Create a PDF document
+        HEADER_IMAGE='./kem_logo.png'
+        pdf_file = f'{REPORTS_DIR}{patient_id}_investigation.pdf'
+        c = canvas.Canvas(pdf_file, pagesize=letter)
+        width, height = letter
+
+        # Define margins
+        margin_left = inch
+        margin_right = inch
+        margin_top = inch
+        margin_bottom = inch
+
+        first_entry = True  # Flag to check for the first entry
+
+        for record in records:
+            entry = record['entry']
+            report = record['report']
+            print('print report',report)
+            #Remove Datetime key and object
+            if 'Datetime' in report['Record Entry']:
+                del report['Record Entry']['Datetime']
+            print('print report mod',report)
+            report = json_to_formatted_string(report)
             
-            for wrapped_line in wrapped_lines:
-                if y_position < margin_bottom:  # Avoid printing too close to the bottom
-                    c.showPage()
-                    y_position = height - margin_top - 1.6*inch
-                    # Draw the header again
-                    #c.drawImage(HEADER_IMAGE, margin_left, height - margin_top, width=2*inch, preserveAspectRatio=True, mask='auto')
-                    try:
-                        c.drawImage(HEADER_IMAGE, margin_left, height - margin_top -1.8*inch, width=1*inch, preserveAspectRatio=True, mask='auto')
-                    except Exception as e:
-                        print(f"Error loading image: {e}")
-                    c.setFont("Helvetica-Bold", 14)
-                    #c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Your Report Header Text")
-                    c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.5 * inch, "Arista Surge Medical Center")
-                    c.setFont("Helvetica", 12)
-                    c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "123 Medical Way, Health City, CA 12345")
-                    c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
-                    c.setFont("Helvetica", 12)
-                c.drawString(margin_left, y_position, wrapped_line)
-                y_position -= 15  # Adjust line spacing for better readability
+            # Create a new page for each entry
+            if not first_entry:
+                c.showPage()  # Create a new page for each subsequent entry
+            first_entry = False
 
-        # Add a line separator between reports
-        # y_position -= 5
-        # c.line(margin_left, y_position, width - margin_right, y_position)
-        c.line(margin_left, margin_bottom, width - margin_right, margin_bottom)
-        y_position -= 25  # Additional spacing before the next entry
+            # Draw the header
+            #c.drawImage(HEADER_IMAGE, margin_left, height - margin_top, width=2*inch, preserveAspectRatio=True, mask='auto')
+            try:
+                c.drawImage(HEADER_IMAGE, margin_left, height - margin_top -1.8*inch, width=1*inch, preserveAspectRatio=True, mask='auto')
+            except Exception as e:
+                print(f"Error loading image: {e}")
+            c.setFont("Helvetica-Bold", 14)
+            #c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Your Report Header Text")
+            c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.5 * inch, "Arista Surge Medical Center")
+            c.setFont("Helvetica", 12)
+            c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "123 Medical Way, Health City, CA 12345")
+            c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
 
-        # Draw the footer
-        c.setFont("Helvetica", 8)
-        c.drawString(margin_left, margin_bottom / 2, f"Page {c.getPageNumber()} - Confidential")
+            # Draw the entry number
+            c.setFont("Helvetica", 12)
+            c.line(margin_left, height - margin_top - 0.3 * inch, width - margin_right, height - margin_top - 0.3 * inch)
+            c.drawString(margin_left, height - margin_top - 0.7 * inch, f"Patient id: {patient_id}")
+            c.drawString(margin_left, height - margin_top - 1* inch, f"Entry Number: {entry}")
+            # Print the report content
+            y_position = height - margin_top - 1.4*inch
+            text_lines = report.split('\n')
+            c.setFont("Helvetica", 12)
+            
+            for line in text_lines:
+                # Ensure the text wraps if it's too long
+                wrapped_lines = []
+                while len(line) > 80:  # 80 characters per line for wrapping
+                    wrapped_lines.append(line[:80])
+                    line = line[80:]
+                wrapped_lines.append(line)
+                
+                for wrapped_line in wrapped_lines:
+                    if y_position < margin_bottom:  # Avoid printing too close to the bottom
+                        c.showPage()
+                        y_position = height - margin_top - 1.6*inch
+                        # Draw the header again
+                        #c.drawImage(HEADER_IMAGE, margin_left, height - margin_top, width=2*inch, preserveAspectRatio=True, mask='auto')
+                        try:
+                            c.drawImage(HEADER_IMAGE, margin_left, height - margin_top -1.8*inch, width=1*inch, preserveAspectRatio=True, mask='auto')
+                        except Exception as e:
+                            print(f"Error loading image: {e}")
+                        c.setFont("Helvetica-Bold", 14)
+                        #c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Your Report Header Text")
+                        c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.5 * inch, "Arista Surge Medical Center")
+                        c.setFont("Helvetica", 12)
+                        c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "123 Medical Way, Health City, CA 12345")
+                        c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
+                        c.setFont("Helvetica", 12)
+                    c.drawString(margin_left, y_position, wrapped_line)
+                    y_position -= 15  # Adjust line spacing for better readability
 
-    c.save()
-    print(f'Report for patient_id {patient_id} has been saved to {pdf_file}')
+            # Add a line separator between reports
+            # y_position -= 5
+            # c.line(margin_left, y_position, width - margin_right, y_position)
+            c.line(margin_left, margin_bottom, width - margin_right, margin_bottom)
+            y_position -= 25  # Additional spacing before the next entry
+
+            # Draw the footer
+            c.setFont("Helvetica", 8)
+            c.drawString(margin_left, margin_bottom / 2, f"Page {c.getPageNumber()} - Confidential")
+
+        c.save()
+        print(f'Investigation for patient_id {patient_id} has been saved to {pdf_file}')
+    else:
+        #Report
+        # Retrieve all reports for the given patient_id
+        records = await ehr_collection.find({'patient_id': patient_id}).sort('entry').to_list(None)
+        # Check if records exist
+        if not records:
+            print(f'No records found for patient_id: {patient_id}')
+            return
+        
+        print('found records')
+        # Create a PDF document
+        HEADER_IMAGE='./kem_logo.png'
+        pdf_file = f'{REPORTS_DIR}{patient_id}_report.pdf'
+        c = canvas.Canvas(pdf_file, pagesize=letter)
+        width, height = letter
+
+        # Define margins
+        margin_left = inch
+        margin_right = inch
+        margin_top = inch
+        margin_bottom = inch
+
+        first_entry = True  # Flag to check for the first entry
+
+        for record in records:
+            entry = record['entry']
+            report = record['report']
+            print('print report',report)
+            #Remove Datetime key and object
+            if 'Datetime' in report['Record Entry']:
+                del report['Record Entry']['Datetime']
+            print('print report mod',report)
+            report = json_to_formatted_string(report)
+            
+            # Create a new page for each entry
+            if not first_entry:
+                c.showPage()  # Create a new page for each subsequent entry
+            first_entry = False
+
+            # Draw the header
+            #c.drawImage(HEADER_IMAGE, margin_left, height - margin_top, width=2*inch, preserveAspectRatio=True, mask='auto')
+            try:
+                c.drawImage(HEADER_IMAGE, margin_left, height - margin_top -1.8*inch, width=1*inch, preserveAspectRatio=True, mask='auto')
+            except Exception as e:
+                print(f"Error loading image: {e}")
+            c.setFont("Helvetica-Bold", 14)
+            #c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Your Report Header Text")
+            c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.5 * inch, "Arista Surge Medical Center")
+            c.setFont("Helvetica", 12)
+            c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "123 Medical Way, Health City, CA 12345")
+            c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
+
+            # Draw the entry number
+            c.setFont("Helvetica", 12)
+            c.line(margin_left, height - margin_top - 0.3 * inch, width - margin_right, height - margin_top - 0.3 * inch)
+            c.drawString(margin_left, height - margin_top - 0.7 * inch, f"Patient id: {patient_id}")
+            c.drawString(margin_left, height - margin_top - 1* inch, f"Entry Number: {entry}")
+            # Print the report content
+            y_position = height - margin_top - 1.4*inch
+            text_lines = report.split('\n')
+            c.setFont("Helvetica", 12)
+            
+            for line in text_lines:
+                # Ensure the text wraps if it's too long
+                wrapped_lines = []
+                while len(line) > 80:  # 80 characters per line for wrapping
+                    wrapped_lines.append(line[:80])
+                    line = line[80:]
+                wrapped_lines.append(line)
+                
+                for wrapped_line in wrapped_lines:
+                    if y_position < margin_bottom:  # Avoid printing too close to the bottom
+                        c.showPage()
+                        y_position = height - margin_top - 1.6*inch
+                        # Draw the header again
+                        #c.drawImage(HEADER_IMAGE, margin_left, height - margin_top, width=2*inch, preserveAspectRatio=True, mask='auto')
+                        try:
+                            c.drawImage(HEADER_IMAGE, margin_left, height - margin_top -1.8*inch, width=1*inch, preserveAspectRatio=True, mask='auto')
+                        except Exception as e:
+                            print(f"Error loading image: {e}")
+                        c.setFont("Helvetica-Bold", 14)
+                        #c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Your Report Header Text")
+                        c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.5 * inch, "Arista Surge Medical Center")
+                        c.setFont("Helvetica", 12)
+                        c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "123 Medical Way, Health City, CA 12345")
+                        c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
+                        c.setFont("Helvetica", 12)
+                    c.drawString(margin_left, y_position, wrapped_line)
+                    y_position -= 15  # Adjust line spacing for better readability
+
+            # Add a line separator between reports
+            # y_position -= 5
+            # c.line(margin_left, y_position, width - margin_right, y_position)
+            c.line(margin_left, margin_bottom, width - margin_right, margin_bottom)
+            y_position -= 25  # Additional spacing before the next entry
+
+            # Draw the footer
+            c.setFont("Helvetica", 8)
+            c.drawString(margin_left, margin_bottom / 2, f"Page {c.getPageNumber()} - Confidential")
+
+        c.save()
+        print(f'Report for patient_id {patient_id} has been saved to {pdf_file}')
 
 # @app.post("/print-report/")
 # async def print_report_endpoint(patient_id: PatientID):
@@ -501,6 +645,8 @@ async def save_request(request: Request):
     intent=data.get('intent','')
     print(query)
     print(intent)
+    isInvestigation=data.get('isInvestigation',False)
+    print('save_request isInvestigation ',isInvestigation)
     #Patient id will be provided-no case where it wont be there
     output_json=await extract_id_and_json_report(query)
     output=json.loads(output_json)
@@ -509,6 +655,7 @@ async def save_request(request: Request):
     report=output['Report']
     print('report json gpt',report)
     entry=1
+    entry_investigation=1
     
     #Read the report and find patient id
     patient_id_exists_in_records=False
@@ -517,11 +664,19 @@ async def save_request(request: Request):
         if record_count!=0:
             patient_id_exists_in_records=True
             entry=record_count+1
+        if isInvestigation:
+            record_count_inv = await get_patient_record_count(patient_id,isInvestigation=True)
+            if record_count_inv !=0:
+                entry_investigation=record_count_inv+1
     else:
         return {'message':'Patient id is not provided'}
     
     if patient_id_exists_in_records:
         print('patient id exists in records')
+        if isInvestigation:
+            updated_record=await add_record(entry_investigation,patient_id,report,isInvestigation=True)
+            await print_report(patient_id,isInvestigation=True)
+            
         updated_record = await add_record(entry, patient_id, report)
         print(updated_record)
         await print_report(patient_id)
@@ -532,7 +687,10 @@ async def save_request(request: Request):
         if intent.lower()=='update':
             print('inside the condition')
             return {'message':'Patient id does not exist in the database'}
-        
+        if isInvestigation:
+            updated_record=await add_record(entry_investigation,patient_id,report,isInvestigation=True)
+            await print_report(patient_id,isInvestigation=True)
+            
         created_record = await add_record(entry, patient_id, report)
         print(created_record)
         

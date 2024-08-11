@@ -70,18 +70,25 @@ const Records = () => {
         className="w-full p-2 pr-10 text-black rounded-lg overflow-y-auto"
       />
       </div>
+      <div class="flex items-center mb-6">
+    <input id="default-checkbox" type="checkbox" value="" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"/>
+    <label for="default-checkbox" class="ms-2 text-sm font-medium text-white dark:text-gray-300">Investigations only</label>
+</div>
       <div className="w-3/4 p-6 bg-gray-800 rounded-lg overflow-y-auto max-h-96">
         <div className="grid grid-cols-4 gap-4">
           {reports.map((report, index) => {
             const patientId = report.split('_')[0]; 
+            console.log(patientId)
+            const reportTypechunk = report.split('_')[1]; 
+            const reportType=reportTypechunk.split('.')[0];
             return(
             
             <div
               key={index}
-              className="p-4 py-12 px-12 bg-gray-700 shadow rounded-lg cursor-pointer"
+              className="p-3 py-10 px-8 bg-gray-700 shadow rounded-lg cursor-pointer"
               onClick={() => handleReportClick(report)}
             >
-              Patient Id: {patientId}
+              {reportType.charAt(0).toUpperCase()+reportType.slice(1)} id: {patientId}
             </div>
           )})}
         </div>

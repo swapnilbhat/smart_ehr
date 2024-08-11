@@ -17,11 +17,15 @@ const Sidebar = ({refreshReports}) => {
   return (
     <div className="w-64 bg-gray-800 p-4 flex flex-col">
       <div className="flex-shrink-0">
-        <h1 className="text-2xl font-bold mt-4">Recent Reports</h1>
+        <h1 className="text-2xl font-bold mt-4">Recent Records</h1>
       </div>
      <ul className="flex flex-col space-y-2 mt-4">
         {reports.map((report, index) => {
           const patientId = report.split('_')[0]; 
+          console.log(patientId)
+          const reportTypechunk = report.split('_')[1]; 
+          const reportType=reportTypechunk.split('.')[0];
+          console.log(reportType)
           return(
           <li key={index}>
             <a
@@ -29,33 +33,13 @@ const Sidebar = ({refreshReports}) => {
               download
               className="block p-2 bg-gray-700 hover:bg-gray-600 rounded"
             >
-              Patient Id: {patientId}
+             {reportType.charAt(0).toUpperCase()+reportType.slice(1)} id: {patientId}
             </a>
           </li>
         )})}
       </ul>
     </div>
   );
-  // return (
-  //   <div className="w-64 bg-gray-800 p-4 flex flex-col h-screen fixed overflow-y-auto">
-  //     <div className="flex-shrink-0 mb-4">
-  //       <h1 className="text-2xl font-bold">Your Reports</h1>
-  //     </div>
-  //    <ul className="flex flex-col space-y-2">
-  //       {reports.map((report, index) => (
-  //         <li key={index}>
-  //           <a
-  //             href={`http://localhost:8000/reports/${report}`}
-  //             download
-  //             className="block p-2 bg-gray-700 hover:bg-gray-600 rounded"
-  //           >
-  //             {report}
-  //           </a>
-  //         </li>
-  //       ))}
-  //     </ul>
-  //   </div>
-  // );
 };
 
 export default Sidebar;
