@@ -2,10 +2,13 @@ import React, { useState,useEffect } from "react";
 import axios from 'axios';
 const Sidebar = ({refreshReports}) => {
   const [reports, setReports] = useState([]);
+  const[patientNames,setPatientNames]=useState([]);
+
   const fetchReports = async () => {
     try {
       const response = await axios.get('http://localhost:8000/reports');
       setReports(response.data.reports);
+      setPatientNames(response.data.patient_names)
     } catch (error) {
       console.error('Error fetching reports:', error);
     }
@@ -31,7 +34,8 @@ const Sidebar = ({refreshReports}) => {
               download
               className="block p-2 bg-gray-700 hover:bg-gray-600 rounded"
             >
-             {reportType.charAt(0).toUpperCase()+reportType.slice(1)} id: {patientId}
+             {/* {reportType.charAt(0).toUpperCase()+reportType.slice(1)} id: {patientId} */}
+             {patientNames[index]}, {reportType.charAt(0).toUpperCase()+reportType.slice(1)} id: {patientId}
             </a>
           </li>
         )})}

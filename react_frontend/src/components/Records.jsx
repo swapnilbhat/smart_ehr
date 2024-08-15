@@ -6,6 +6,7 @@ const Records = () => {
     const [initialReports, setInitialReports] = useState([]);
     const [fetchFiltered, setFetchFiltered] = useState(false);
     const [isChecked, setIsChecked] = useState(false);
+    const[patientNames,setPatientNames]=useState([]);
 
     useEffect(() => {
         // Fetch the list of reports from the backend
@@ -31,6 +32,8 @@ const Records = () => {
               const result = response.data;
               // console.log('result',result)
               setReports(result.reports); // Update reports based on filtering
+              setPatientNames(response.data.patient_names);
+              console.log(result.patient_names)
           } catch (error) {
               console.error('Error fetching filtered reports:', error);
           }
@@ -126,7 +129,8 @@ const Records = () => {
               className="p-3 py-10 px-6 bg-gray-700 shadow rounded-lg cursor-pointer"
               onClick={() => handleReportClick(report)}
             >
-              {reportType.charAt(0).toUpperCase()+reportType.slice(1)} id: {patientId}
+              {/* {reportType.charAt(0).toUpperCase()+reportType.slice(1)} id: {patientId} */}
+              {patientNames[index]}, {reportType.charAt(0).toUpperCase()+reportType.slice(1)} id: {patientId}
             </div>
           )})}
         </div>

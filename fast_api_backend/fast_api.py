@@ -41,6 +41,7 @@ patient_lookup=database.get_collection("patient_lookup_2")
 REPORTS_DIR = 'reports/'
 investigation_collection=database.get_collection("investigations")
 investigation_lookup=database.get_collection("investigation_lookup")
+patient_id_name_collection=database.get_collection("patient_id_name_mapping")
 # Pydantic model for EHR
 class EHRModel(BaseModel):
     entry: int
@@ -85,6 +86,14 @@ async def add_record(entry,patient_id,report,isInvestigation=False):
         }
         new_record = await investigation_collection.insert_one(record)
         print(f'Record added for patient_id: {patient_id}')
+        patient_exists = await patient_id_name_collection.find_one({'patient_id': patient_id})
+        print('Patient exists in id name lookup ',patient_exists)
+        if not patient_exists:
+            # If patient_id doesn't exist, add the entry
+            name=search_key_in_json(report,'Name')
+            print('Id',patient_id,'Name',name)
+            await patient_id_name_collection.insert_one({'patient_id': patient_id, 'name': name})
+            print(f'Added new patient entry: patient_id: {patient_id}, name: {name}')
         # Update the lookup table
         lookup_result = await investigation_lookup.update_one(
             {'patient_id': patient_id},
@@ -114,6 +123,14 @@ async def add_record(entry,patient_id,report,isInvestigation=False):
         }
         new_record = await ehr_collection.insert_one(record)
         print(f'Record added for patient_id: {patient_id}')
+        patient_exists = await patient_id_name_collection.find_one({'patient_id': patient_id})
+        print('Patient exists in id name lookup ',patient_exists)
+        if not patient_exists:
+            # If patient_id doesn't exist, add the entry
+            name=search_key_in_json(report,'Name')
+            print('Id',patient_id,'Name',name)
+            await patient_id_name_collection.insert_one({'patient_id': patient_id, 'name': name})
+            print(f'Added new patient entry: patient_id: {patient_id}, name: {name}')
         # Update the lookup table
         lookup_result = await patient_lookup.update_one(
             {'patient_id': patient_id},
@@ -183,14 +200,14 @@ async def print_report(patient_id,isInvestigation=False):
             # Draw the header
             #c.drawImage(HEADER_IMAGE, margin_left, height - margin_top, width=2*inch, preserveAspectRatio=True, mask='auto')
             try:
-                c.drawImage(HEADER_IMAGE, margin_left, height - margin_top -1.8*inch, width=1*inch, preserveAspectRatio=True, mask='auto')
+                c.drawImage(HEADER_IMAGE, margin_left, height - margin_top -3*inch, width=1*inch, preserveAspectRatio=True, mask='auto')
             except Exception as e:
                 print(f"Error loading image: {e}")
             c.setFont("Helvetica-Bold", 14)
             #c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Your Report Header Text")
             c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.5 * inch, "Arista Surge Medical Center")
-            # c.setFont("Helvetica", 12)
-            # c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "123 Medical Way, Health City, CA 12345")
+            c.setFont("Helvetica", 12)
+            c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Mumbai")
             # c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
 
             # Draw the entry number
@@ -218,14 +235,14 @@ async def print_report(patient_id,isInvestigation=False):
                         # Draw the header again
                         #c.drawImage(HEADER_IMAGE, margin_left, height - margin_top, width=2*inch, preserveAspectRatio=True, mask='auto')
                         try:
-                            c.drawImage(HEADER_IMAGE, margin_left, height - margin_top -1.8*inch, width=1*inch, preserveAspectRatio=True, mask='auto')
+                            c.drawImage(HEADER_IMAGE, margin_left, height - margin_top -3*inch, width=1*inch, preserveAspectRatio=True, mask='auto')
                         except Exception as e:
                             print(f"Error loading image: {e}")
                         c.setFont("Helvetica-Bold", 14)
                         #c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Your Report Header Text")
                         c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.5 * inch, "Arista Surge Medical Center")
-                        # c.setFont("Helvetica", 12)
-                        # c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "123 Medical Way, Health City, CA 12345")
+                        c.setFont("Helvetica", 12)
+                        c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Mumbai")
                         # c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
                         c.setFont("Helvetica", 12)
                     c.drawString(margin_left, y_position, wrapped_line)
@@ -285,15 +302,16 @@ async def print_report(patient_id,isInvestigation=False):
 
             # Draw the header
             #c.drawImage(HEADER_IMAGE, margin_left, height - margin_top, width=2*inch, preserveAspectRatio=True, mask='auto')
+            # margin_top -1.8*inch
             try:
-                c.drawImage(HEADER_IMAGE, margin_left, height - margin_top -1.8*inch, width=1*inch, preserveAspectRatio=True, mask='auto')
+                c.drawImage(HEADER_IMAGE, margin_left, height - margin_top -3*inch, width=1*inch, preserveAspectRatio=True, mask='auto')
             except Exception as e:
                 print(f"Error loading image: {e}")
             c.setFont("Helvetica-Bold", 14)
             #c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Your Report Header Text")
             c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.5 * inch, "Arista Surge Medical Center")
-            # c.setFont("Helvetica", 12)
-            # c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "123 Medical Way, Health City, CA 12345")
+            c.setFont("Helvetica", 12)
+            c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Mumbai")
             # c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
 
             # Draw the entry number
@@ -321,14 +339,14 @@ async def print_report(patient_id,isInvestigation=False):
                         # Draw the header again
                         #c.drawImage(HEADER_IMAGE, margin_left, height - margin_top, width=2*inch, preserveAspectRatio=True, mask='auto')
                         try:
-                            c.drawImage(HEADER_IMAGE, margin_left, height - margin_top -1.8*inch, width=1*inch, preserveAspectRatio=True, mask='auto')
+                            c.drawImage(HEADER_IMAGE, margin_left, height - margin_top -3*inch, width=1*inch, preserveAspectRatio=True, mask='auto')
                         except Exception as e:
                             print(f"Error loading image: {e}")
                         c.setFont("Helvetica-Bold", 14)
                         #c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Your Report Header Text")
                         c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.5 * inch, "Arista Surge Medical Center")
-                        # c.setFont("Helvetica", 12)
-                        # c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "123 Medical Way, Health City, CA 12345")
+                        c.setFont("Helvetica", 12)
+                        c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Mumbai")
                         # c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
                         c.setFont("Helvetica", 12)
                     c.drawString(margin_left, y_position, wrapped_line)
@@ -427,8 +445,7 @@ async def task_on_EHR(reports,datetime_now,task):
 
 async def extract_intent_and_content(query:str,intent:str):
     if intent.lower() == 'create':
-        create_prompt=f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a 
-         Doctor, where you are asked to create a medical record for a patient.
+        create_prompt=f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a Doctor, where you are asked to create a medical record for a patient.
     You must create a Medical record of the patient based only on the information provided by the 
      doctor, and structure it into a json format with headings and subheadings along with the date mentioned in the query.
     Examples of headings and its subheadings:
@@ -441,16 +458,15 @@ async def extract_intent_and_content(query:str,intent:str):
     Heading: Post Operative Care
     Heading: Discharge Instructions
     Heading: Signature     
-    The above list is not exhaustive and you can create Headings on your own to group the text.You must add content under the relevant 
-    heading based on how it appears in the query.
+    The above list is not exhaustive and you can create Headings on your own to group the text.You must add content under the relevant heading based on how it appears in the query.
     You must strictly use only the information provided in the query. 
-    You must not mention a Heading or Subheading in the output, if its information isnt given in the query.
+    You must not mention a Heading or Subheading in the output, if its information is not given in the query.
     You must clearly mention numerical results of the test, and you must structure the report chronologically. 
     You must give the medical record for the patient as output.  
     This is the query given by the doctor: 
     {query}\n'''
         output=await gpt_json(create_prompt,1000)
-        print(output)
+        # print(output)
         report_json=json.loads(output)
         patient_id_exists=True
         result=search_key_in_json(report_json,'patient id')
@@ -705,14 +721,37 @@ async def list_reports():
     files = os.listdir(REPORTS_DIR)
     files_with_time = [(file, os.path.getmtime(os.path.join(REPORTS_DIR, file))) for file in files]
     sorted_files = sorted(files_with_time, key=lambda x: x[1], reverse=True)
-    recent_files = [file for file, _ in sorted_files[:12]]
+    recent_files = [file for file, _ in sorted_files[:5]]
     print(recent_files)
-    return {"reports": recent_files}
+    patient_ids=[file.split('_')[0] for file in recent_files]
+    patient_names=[]
+    for patient_id in patient_ids:
+        patient_entry = await patient_id_name_collection.find_one({'patient_id': patient_id})
+        if patient_entry:
+            # If a matching document is found, return the name
+            name= patient_entry.get('name')
+        else:
+            # If no matching document is found, return None or a default message
+            name=''
+        patient_names.append(name)
+    print(patient_names)
+    return {"reports": recent_files,"patient_names":patient_names}
 
 @app.get("/reports_all")
 async def list_reports():
     files = os.listdir(REPORTS_DIR)
-    return {"reports": files}
+    patient_ids=[file.split('_')[0] for file in files]
+    patient_names=[]
+    for patient_id in patient_ids:
+        patient_entry = await patient_id_name_collection.find_one({'patient_id': patient_id})
+        if patient_entry:
+            # If a matching document is found, return the name
+            name= patient_entry.get('name')
+        else:
+            # If no matching document is found, return None or a default message
+            name=''
+        patient_names.append(name)
+    return {"reports": files,"patient_names":patient_names}
 
 @app.get("/reports/{report_name}")
 async def get_report(report_name: str):
@@ -738,7 +777,18 @@ async def filter_reports(request: Request):
     # print(search_attribute)
     if not query and not isInvestigation:
         files = os.listdir(REPORTS_DIR)
-        return {"reports": files}
+        patient_ids=[file.split('_')[0] for file in files]
+        patient_names=[]
+        for patient_id in patient_ids:
+            patient_entry = await patient_id_name_collection.find_one({'patient_id': patient_id})
+            if patient_entry:
+                # If a matching document is found, return the name
+                name= patient_entry.get('name')
+            else:
+                # If no matching document is found, return None or a default message
+                name=''
+            patient_names.append(name)
+        return {"reports": files,"patient_names":patient_names}
     
     elif not query and isInvestigation:
         files = os.listdir(REPORTS_DIR)
@@ -747,7 +797,20 @@ async def filter_reports(request: Request):
             file_inv=file.split('_')[1]
             if file_inv.split('.')[0]=='investigation':
                 filtered_files_inv.append(file)
-        return {"reports":filtered_files_inv}
+                
+        patient_ids=[file.split('_')[0] for file in filtered_files_inv]
+        patient_names=[]
+        for patient_id in patient_ids:
+            patient_entry = await patient_id_name_collection.find_one({'patient_id': patient_id})
+            if patient_entry:
+                # If a matching document is found, return the name
+                name= patient_entry.get('name')
+            else:
+                # If no matching document is found, return None or a default message
+                name=''
+            patient_names.append(name)
+        return {"reports": filtered_files_inv,"patient_names":patient_names}
+    
     elif query and isInvestigation:
         search_attribute = ' '.join([f"\"{item.strip()}\"" for item in query_split])
         print(search_attribute)
@@ -762,14 +825,14 @@ async def filter_reports(request: Request):
             patient_ids.add(json_doc['patient_id'])
         print('patient ids',patient_ids)
         print('patient ids length',len(patient_ids))
-        print(results)
+        #print(results)
         files = os.listdir(REPORTS_DIR)
         filtered_files_inv=[]
         for file in files:
             file_inv=file.split('_')[1]
             if file_inv.split('.')[0]=='investigation':
                 filtered_files_inv.append(file)
-        print(files)
+        #print(files)
         #Logic for getting filtered files- this can change if file name doesnt contain patient id
         filtered_files=[]
         for file in filtered_files_inv:
@@ -777,7 +840,19 @@ async def filter_reports(request: Request):
             if file_id[0] in patient_ids:
                 filtered_files.append(file)
         print(filtered_files)
-        return {"reports": filtered_files}
+        patient_ids=[file.split('_')[0] for file in filtered_files]
+        patient_names=[]
+        for patient_id in patient_ids:
+            patient_entry = await patient_id_name_collection.find_one({'patient_id': patient_id})
+            if patient_entry:
+                # If a matching document is found, return the name
+                name= patient_entry.get('name')
+            else:
+                # If no matching document is found, return None or a default message
+                name=''
+            patient_names.append(name)
+        return {"reports": filtered_files,"patient_names":patient_names}
+        
     elif query and not isInvestigation:
         search_attribute = ' '.join([f"\"{item.strip()}\"" for item in query_split])
         print(search_attribute)
@@ -802,7 +877,20 @@ async def filter_reports(request: Request):
             if file_id[0] in patient_ids:
                 filtered_files.append(file)
         print(filtered_files)
-        return {"reports": filtered_files}
+        
+        patient_ids=[file.split('_')[0] for file in filtered_files]
+        patient_names=[]
+        for patient_id in patient_ids:
+            patient_entry = await patient_id_name_collection.find_one({'patient_id': patient_id})
+            if patient_entry:
+                # If a matching document is found, return the name
+                name= patient_entry.get('name')
+            else:
+                # If no matching document is found, return None or a default message
+                name=''
+            patient_names.append(name)
+        return {"reports": filtered_files,"patient_names":patient_names}
+        
 
 @app.post('/process_file')
 async def process_file(file: UploadFile = File(...)):
