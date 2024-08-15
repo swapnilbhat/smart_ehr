@@ -22,10 +22,8 @@ const Sidebar = ({refreshReports}) => {
      <ul className="flex flex-col space-y-2 mt-4">
         {reports.map((report, index) => {
           const patientId = report.split('_')[0]; 
-          console.log(patientId)
           const reportTypechunk = report.split('_')[1]; 
           const reportType=reportTypechunk.split('.')[0];
-          console.log(reportType)
           return(
           <li key={index}>
             <a

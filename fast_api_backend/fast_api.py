@@ -151,7 +151,8 @@ async def print_report(patient_id,isInvestigation=False):
         
         print('found records')
         # Create a PDF document
-        HEADER_IMAGE='./kem_logo.png'
+        #HEADER_IMAGE='./kem_logo.png'
+        HEADER_IMAGE='./aristalogo.png'
         pdf_file = f'{REPORTS_DIR}{patient_id}_investigation.pdf'
         c = canvas.Canvas(pdf_file, pagesize=letter)
         width, height = letter
@@ -188,9 +189,9 @@ async def print_report(patient_id,isInvestigation=False):
             c.setFont("Helvetica-Bold", 14)
             #c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Your Report Header Text")
             c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.5 * inch, "Arista Surge Medical Center")
-            c.setFont("Helvetica", 12)
-            c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "123 Medical Way, Health City, CA 12345")
-            c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
+            # c.setFont("Helvetica", 12)
+            # c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "123 Medical Way, Health City, CA 12345")
+            # c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
 
             # Draw the entry number
             c.setFont("Helvetica", 12)
@@ -223,9 +224,9 @@ async def print_report(patient_id,isInvestigation=False):
                         c.setFont("Helvetica-Bold", 14)
                         #c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Your Report Header Text")
                         c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.5 * inch, "Arista Surge Medical Center")
-                        c.setFont("Helvetica", 12)
-                        c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "123 Medical Way, Health City, CA 12345")
-                        c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
+                        # c.setFont("Helvetica", 12)
+                        # c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "123 Medical Way, Health City, CA 12345")
+                        # c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
                         c.setFont("Helvetica", 12)
                     c.drawString(margin_left, y_position, wrapped_line)
                     y_position -= 15  # Adjust line spacing for better readability
@@ -253,7 +254,8 @@ async def print_report(patient_id,isInvestigation=False):
         
         print('found records')
         # Create a PDF document
-        HEADER_IMAGE='./kem_logo.png'
+        # HEADER_IMAGE='./kem_logo.png'
+        HEADER_IMAGE='./aristalogo.png'
         pdf_file = f'{REPORTS_DIR}{patient_id}_report.pdf'
         c = canvas.Canvas(pdf_file, pagesize=letter)
         width, height = letter
@@ -290,9 +292,9 @@ async def print_report(patient_id,isInvestigation=False):
             c.setFont("Helvetica-Bold", 14)
             #c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Your Report Header Text")
             c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.5 * inch, "Arista Surge Medical Center")
-            c.setFont("Helvetica", 12)
-            c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "123 Medical Way, Health City, CA 12345")
-            c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
+            # c.setFont("Helvetica", 12)
+            # c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "123 Medical Way, Health City, CA 12345")
+            # c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
 
             # Draw the entry number
             c.setFont("Helvetica", 12)
@@ -325,9 +327,9 @@ async def print_report(patient_id,isInvestigation=False):
                         c.setFont("Helvetica-Bold", 14)
                         #c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Your Report Header Text")
                         c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.5 * inch, "Arista Surge Medical Center")
-                        c.setFont("Helvetica", 12)
-                        c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "123 Medical Way, Health City, CA 12345")
-                        c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
+                        # c.setFont("Helvetica", 12)
+                        # c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "123 Medical Way, Health City, CA 12345")
+                        # c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
                         c.setFont("Helvetica", 12)
                     c.drawString(margin_left, y_position, wrapped_line)
                     y_position -= 15  # Adjust line spacing for better readability
@@ -727,35 +729,80 @@ async def filter_reports(request: Request):
     print('query',query)
     query_split=query.split(',')
     print(query_split)
+    isInvestigation=data['isInvestigation']
+    print('investigation',isInvestigation)
     # search_attribute=''
     # for item in query_split:
     #     search_attribute+=item
     #     search_attribute+=" "
     # print(search_attribute)
-    search_attribute = ' '.join([f"\"{item.strip()}\"" for item in query_split])
-    print(search_attribute)
-    search_query = {"$text": {"$search": search_attribute}}
-    cursor = ehr_collection.find(search_query)
-    results = []
-    patient_ids = set()
-    print('cursor',cursor)
-    async for document in cursor:
-        json_doc = ehr_helper(document)
-        results.append(json_doc)
-        patient_ids.add(json_doc['patient_id'])
-    print('patient ids',patient_ids)
-    print('patient ids length',len(patient_ids))
-    print(results)
-    files = os.listdir(REPORTS_DIR)
-    print(files)
-    #Logic for getting filtered files- this can change if file name doesnt contain patient id
-    filtered_files=[]
-    for file in files:
-        file_id=file.split('_')
-        if file_id[0] in patient_ids:
-            filtered_files.append(file)
-    print(filtered_files)
-    return {"reports": filtered_files}
+    if not query and not isInvestigation:
+        files = os.listdir(REPORTS_DIR)
+        return {"reports": files}
+    
+    elif not query and isInvestigation:
+        files = os.listdir(REPORTS_DIR)
+        filtered_files_inv=[]
+        for file in files:
+            file_inv=file.split('_')[1]
+            if file_inv.split('.')[0]=='investigation':
+                filtered_files_inv.append(file)
+        return {"reports":filtered_files_inv}
+    elif query and isInvestigation:
+        search_attribute = ' '.join([f"\"{item.strip()}\"" for item in query_split])
+        print(search_attribute)
+        search_query = {"$text": {"$search": search_attribute}}
+        cursor = investigation_collection.find(search_query)
+        results = []
+        patient_ids = set()
+        print('cursor',cursor)
+        async for document in cursor:
+            json_doc = ehr_helper(document)
+            results.append(json_doc)
+            patient_ids.add(json_doc['patient_id'])
+        print('patient ids',patient_ids)
+        print('patient ids length',len(patient_ids))
+        print(results)
+        files = os.listdir(REPORTS_DIR)
+        filtered_files_inv=[]
+        for file in files:
+            file_inv=file.split('_')[1]
+            if file_inv.split('.')[0]=='investigation':
+                filtered_files_inv.append(file)
+        print(files)
+        #Logic for getting filtered files- this can change if file name doesnt contain patient id
+        filtered_files=[]
+        for file in filtered_files_inv:
+            file_id=file.split('_')
+            if file_id[0] in patient_ids:
+                filtered_files.append(file)
+        print(filtered_files)
+        return {"reports": filtered_files}
+    elif query and not isInvestigation:
+        search_attribute = ' '.join([f"\"{item.strip()}\"" for item in query_split])
+        print(search_attribute)
+        search_query = {"$text": {"$search": search_attribute}}
+        cursor = ehr_collection.find(search_query)
+        results = []
+        patient_ids = set()
+        print('cursor',cursor)
+        async for document in cursor:
+            json_doc = ehr_helper(document)
+            results.append(json_doc)
+            patient_ids.add(json_doc['patient_id'])
+        print('patient ids',patient_ids)
+        print('patient ids length',len(patient_ids))
+        print(results)
+        files = os.listdir(REPORTS_DIR)
+        print(files)
+        #Logic for getting filtered files- this can change if file name doesnt contain patient id
+        filtered_files=[]
+        for file in files:
+            file_id=file.split('_')
+            if file_id[0] in patient_ids:
+                filtered_files.append(file)
+        print(filtered_files)
+        return {"reports": filtered_files}
 
 @app.post('/process_file')
 async def process_file(file: UploadFile = File(...)):
