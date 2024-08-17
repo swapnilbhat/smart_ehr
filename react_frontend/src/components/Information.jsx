@@ -23,7 +23,9 @@ const Information = ({ messages }) => {
   }
 
   return (
-    <div className="mt-10 px-20 flex flex-col h-full max-w-[1350px] mx-auto p-4 overflow-y-auto rounded-lg">
+    <div className="text-white p-6  bg-gray-900 rounded-lg overflow-y-auto max-h-[80vh]">
+    <div className="mt-10 px-20 flex flex-col max-w-[1250px]  p-4">
+    {/* <div className="mt-10 px-20 flex flex-col h-full max-w-[1350px] mx-auto p-4 overflow-y-auto rounded-lg"> */}
       {messages.map((message, index) => (
         <div key={index} className={`mb-2 text-[#f3f1fa]  bg-slate-700 rounded-lg  p-2 max-w-xs ${
           message.sender === 'User' ? 'self-start' : 'self-end'
@@ -31,6 +33,7 @@ const Information = ({ messages }) => {
           <strong>{message.sender}:</strong> {message.text}
         </div>
       ))}
+    </div>
     </div>
   );
   // return (

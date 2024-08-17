@@ -425,6 +425,7 @@ async def gpt_json(prompt,max_tokens):
 async def task_on_EHR(reports,datetime_now,task):
     task_prompt=f"""
     You are an AI designed to assist doctors in analyzing Electronic Health Records (EHRs). You will be provided with a list of EHRs in json format for a specific patient and a task to perform on these records. The records are presented in chronological order based on their entry number. A lower entry number denotes an earlier record. You are also provided the current datatime, which you can use to compare with the Date and Time mentioned in the EHR.
+    The output of the task must be to the point and concise. It must be in the form of a paragraph with numbering(or bullets) and points and spaces wherever required.
 
     List of EHRs:
     {reports}
@@ -487,8 +488,7 @@ async def extract_intent_and_content(query:str,intent:str):
         return (report,patient_id_exists)
     
     elif intent.lower()=='read':
-        read_prompt=f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a 
-         Doctor, where you are asked to read a medical record for a patient.
+        read_prompt=f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a Doctor, where you are asked to read a medical record for a patient.
          The doctor wants you to first search for a patient based on a specifc attribute(like Name, Age, Surgical Procedure,etc) and the value of that attribute(like Name is Arjun, so Name is the attribute and Arjun is the value) in the Electronic Health Records, and retrive his data. After retrieval the doctor wants you to perfom a task on the retrieved record.
          
          Examples of tasks are: Retrieve Blood Pressure of the patient, Read glucose levels,etc.
