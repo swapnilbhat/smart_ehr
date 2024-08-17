@@ -398,7 +398,10 @@ def json_to_formatted_string(json_obj):
             elif isinstance(value, list):
                 lines.append(f"{' ' * (level * 2)}{key}:")
                 for item in value:
-                    lines.append(f"{' ' * ((level + 1) * 2)}- {item}")
+                    if isinstance(item, dict):
+                        lines.extend(parse_dict(item, level + 1))
+                    else:
+                        lines.append(f"{' ' * ((level + 1) * 2)}- {item}")
             else:
                 lines.append(f"{' ' * (level * 2)}- {key}: {value}")
         return lines
@@ -460,12 +463,19 @@ async def extract_intent_and_content(query:str,intent:str):
     Heading: Discharge Instructions
     Heading: Signature     
     The above list is not exhaustive and you can create Headings on your own to group the text.You must add content under the relevant heading based on how it appears in the query.
-    You must strictly use only the information provided in the query. 
-    You must not mention a Heading or Subheading in the output, if its information is not given in the query.
-    You must clearly mention numerical results of the test, and you must structure the report chronologically. 
-    You must give the medical record for the patient as output.  
+    
+    You must strictly follow the "Rules" for generating the output
+    
+    ##Rules##
+    1)You must strictly use only the information provided in the query. 
+    2)You must not write a Heading or Subheading in the output, if relevant information is not provided in the query.
+    3) you must not  write N/A or Not Specified in the output 
+    4)You must clearly mention numerical results of the test, and you must structure the report chronologically. 
+    5)You must give the medical record for the patient as output. 
+     
     This is the query given by the doctor: 
     {query}\n'''
+    
         output=await gpt_json(create_prompt,1000)
         # print(output)
         report_json=json.loads(output)
