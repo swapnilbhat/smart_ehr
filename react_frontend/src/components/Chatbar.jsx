@@ -31,7 +31,7 @@ const Chatbar = ({ onSendMessage, onReportCreated }) => {
       formData.append('file', file);
       onSendMessage({ sender: 'User', text: `File uploaded: ${file.name}` });
       try {
-        const response = await axios.post('http://localhost:8000/process_file', formData, {
+        const response = await axios.post('http://192.168.29.28:8000/process_file', formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
@@ -127,7 +127,7 @@ const Chatbar = ({ onSendMessage, onReportCreated }) => {
 
   const handleSendMessageToBackend = async (message) => {
     try {
-      const response = await axios.post('http://localhost:8000/process_request', { text: message });
+      const response = await axios.post('http://192.168.29.28:8000/process_request', { text: message });
       const result = response.data;
       let botReply;
       if (response.data.intent.toLowerCase() === 'create') {
@@ -161,7 +161,7 @@ const Chatbar = ({ onSendMessage, onReportCreated }) => {
 
   const handleSendCreateMessageToBackend=async(message,intent)=>{
     try{
-      const response = await axios.post('http://localhost:8000/save_request', { 'text': message, 'intent': intent, 'isInvestigation': isInvestigation });
+      const response = await axios.post('http://192.168.29.28:8000/save_request', { 'text': message, 'intent': intent, 'isInvestigation': isInvestigation });
       
       const botReply = {
         sender: 'Assistant',

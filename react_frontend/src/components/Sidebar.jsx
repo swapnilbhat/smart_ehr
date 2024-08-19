@@ -6,7 +6,7 @@ const Sidebar = ({refreshReports}) => {
 
   const fetchReports = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/reports');
+      const response = await axios.get('http://192.168.29.28:8000/reports');
       setReports(response.data.reports);
       setPatientNames(response.data.patient_names)
     } catch (error) {
@@ -30,7 +30,7 @@ const Sidebar = ({refreshReports}) => {
           return(
           <li key={index}>
             <a
-              href={`http://localhost:8000/reports/${report}`}
+              href={`http://192.168.29.28:8000/reports/${report}`}
               download
               className="block p-2 bg-gray-700 hover:bg-gray-600 rounded"
             >
