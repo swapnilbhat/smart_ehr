@@ -12,7 +12,7 @@ const Records = () => {
         // Fetch the list of reports from the backend
         const fetchReports = async () => {
         try {
-            const response = await axios.get('http://192.168.29.28:8000/reports_all');
+            const response = await axios.get('http://localhost:8000/reports_all');
             setReports(response.data.reports);
             setInitialReports(response.data.reports);
         } catch (error) {
@@ -28,7 +28,7 @@ const Records = () => {
           try {
               console.log('input',input)
               console.log('fetch reports triggered')
-              const response = await axios.post('http://192.168.29.28:8000/filter_reports', { 'text': input ,'isInvestigation': isChecked});
+              const response = await axios.post('http://localhost:8000/filter_reports', { 'text': input ,'isInvestigation': isChecked});
               const result = response.data;
               // console.log('result',result)
               setReports(result.reports); // Update reports based on filtering
@@ -67,7 +67,7 @@ const Records = () => {
 
     const handleReportClick = (reportName) => {
         // Open the PDF file in a new tab
-        window.open(`http://192.168.29.28:8000/reports/${reportName}`, '_blank');
+        window.open(`http://localhost:8000/reports/${reportName}`, '_blank');
       };
     
       const handleInputEnterPress = () => {
