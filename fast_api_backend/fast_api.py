@@ -449,45 +449,92 @@ async def task_on_EHR(reports,datetime_now,task):
 
 async def extract_intent_and_content(query:str,intent:str):
     if intent.lower() == 'create':
-        create_prompt=f'''You are an AI designed to help doctors to automate Electronic Health Records, you will be given a query by a Doctor, where you are asked to create a medical record for a patient.
-    You must create a Medical record of the patient based only on the information provided by the 
-     doctor, and structure it into a json format with headings and subheadings along with the date mentioned in the query.
-    Examples of headings and its subheadings:
-    Heading: Patient Information ; Subheadings: Patient id,Name, Age, Gender, Date of Birth, Address, Phone Number, Blood Group, etc
-    Heading: Chief Complaints
-    Heading: General Information
-    Heading: Medical History;  
-    Heading: Surgical Procedure; Subheadings: Procedure Name, Date of Surgery, Surgeon, Procedure Details, etc
-    Heading: Test conducted; Subheadings: Tests conducted and their results along with date
-    Heading: Post Operative Care
-    Heading: Discharge Instructions
-    Heading: Signature     
-    The above list is not exhaustive and you can create Headings on your own to group the text.You must add content under the relevant heading based on how it appears in the query.
-    
-    You must strictly follow the "Rules" for generating the output
-    
-    ##Rules##
-    1)You must strictly use only the information provided in the query. 
-    2)You must not write a Heading or Subheading in the output, if relevant information is not provided in the query.
-    3) you must not  write N/A or Not Specified in the output 
-    4)You must clearly mention numerical results of the test, and you must structure the report chronologically. 
-    5)You must give the medical record for the patient as output. 
-     
-    This is the query given by the doctor: 
+        create_prompt=f'''You are an AI radiology assistant designed to convert a radiologist’s unstructured report into a well-structured, professional radiology report. The report must adhere strictly to ACR guidelines and be formatted clearly, with appropriate headings and subheadings. Your task is to identify the relevant information, and organize it into a structured format as given under "Radiology Report Structure".
+You must strictly include only those Headings/Subheadings whose information is given.
+        
+##Radiology Report Structure##
+
+Heading: Demographics
+
+Subheadings:
+Facility/Location: Where the study was performed.
+Patient Information: Include Patient Id, Name, Age or Date of Birth, and Gender.
+Referring Physician: Name(s) of the referring physician(s) or other healthcare provider(s). Indicate if the patient is self-referred.
+Examination Type: Name or type of examination performed.
+Examination Date: The date when the examination took place.
+Examination Time: Include the time of the examination if relevant.
+Additional Information: Optional fields like Date of Dictation and Date/Time of Transcription.
+
+Heading: Relevant Clinical Information
+
+Subheading:
+Clinical History: Provide a summary of the patient’s relevant clinical history, including chief complaints and any pertinent medical background that led to the imaging study.
+
+Heading: Procedures and Materials
+
+Subheadings:
+Study/Procedure Details: A description of the studies or procedures performed during the examination.
+Contrast Media: Details on any contrast media or radiopharmaceuticals used, including dosage, concentration, volume, and route of administration.
+Additional Materials: Information on medications, catheters, or devices used beyond the routine administration of contrast agents.
+Patient Reactions: Document any significant patient reactions or complications, along with any therapeutic interventions.
+Patient Instructions: Include any instructions given to the patient or responsible parties.
+
+Heading: Findings
+
+Subheadings:
+Observations: Clearly document the radiologic findings using precise anatomic, pathologic, and radiologic terminology.
+Clarity: Use short, informative, and factual statements without interpretation. Save interpretation for the impression.
+Organization: Group related findings together logically. Consider using lists for multiple related observations to enhance readability.
+
+Heading: Potential Limitations
+
+Subheading:
+Study Limitations: Concisely state any limitations of the study that might impact the interpretation of the results.
+
+Heading: Clinical Issues
+
+Subheadings:
+Clinical Questions: Address specific clinical questions or issues raised in the referral.
+Diagnostic Challenges: Explicitly state if any factors prevent a clear answer to the clinical question.
+
+Heading: Comparison Studies and Reports
+
+Subheading:
+Comparative Analysis: Include a comparison with previous studies or reports when available and relevant.
+
+Heading: Impression (Conclusion or Diagnosis)
+
+Subheadings:
+Diagnosis: Start with the most likely diagnosis or a differential diagnosis.
+Summary: Provide a high-level summary of the key imaging findings that support the diagnosis.
+Recommendations: Offer clear, actionable recommendations based on the findings, avoiding unnecessary technical language.
+Next Steps: Suggest any follow-up studies or additional diagnostics if necessary.
+
+You must strictly  follow "Rules for Report Generation" for generating the report in json format.
+
+##Rules for Report Generation##
+1.	You must only use the information provided in the unstructured report by the radiologist. You must not infer or add details.
+2.	You must only include headings and subheadings relevant to the provided information. You must not mention information regarding a heading or subheading if it isn't provided in the unstructured report by the radiologist.
+3. If any headings( except 'Demographics') or any of their subheadings have empty fields, then you must not mention them in the final output.
+3.	You must not use placeholders such as “N/A” , “Not Specified.”, "Not Provided", etc.
+4.	You must ensure that the report is free of unnecessary jargon, especially in the impression, to make it accessible to all healthcare providers.
+5.	You must present the information in a logical and chronological order where applicable.
+
+Here is the unstructured report of the radiologist:
     {query}\n'''
     
         output=await gpt_json(create_prompt,1000)
         # print(output)
         report_json=json.loads(output)
         patient_id_exists=True
-        result=search_key_in_json(report_json,'patient id')
+        result=search_key_in_json(report_json,'patient Id')
         if not result:
             patient_id_exists=False
-            patient_info = report_json['Patient Information']
-            new_patient_info = {'Patient id': ''}  # You can replace '12345' with the actual patient id
+            patient_info = report_json['Demographics']['Patient Information']
+            new_patient_info = {'Patient Id': ''}  # You can replace '12345' with the actual patient id
             new_patient_info.update(patient_info)
             # Update the original dictionary
-            report_json['Patient Information'] = new_patient_info
+            report_json['Demographics']['Patient Information'] = new_patient_info
             json.dumps(report_json, indent=4)
             
             
