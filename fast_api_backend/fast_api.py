@@ -213,7 +213,7 @@ async def print_report(patient_id,isInvestigation=False):
             # Draw the entry number
             c.setFont("Helvetica", 12)
             c.line(margin_left, height - margin_top - 0.3 * inch, width - margin_right, height - margin_top - 0.3 * inch)
-            c.drawString(margin_left, height - margin_top - 0.7 * inch, f"Patient id: {patient_id}")
+            c.drawString(margin_left, height - margin_top - 0.7 * inch, f"Patient Id: {patient_id}")
             c.drawString(margin_left, height - margin_top - 1* inch, f"Entry Number: {entry}")
             # Print the report content
             y_position = height - margin_top - 1.4*inch
@@ -245,8 +245,29 @@ async def print_report(patient_id,isInvestigation=False):
                         c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Mumbai")
                         # c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
                         c.setFont("Helvetica", 12)
-                    c.drawString(margin_left, y_position, wrapped_line)
-                    y_position -= 15  # Adjust line spacing for better readability
+                    #c.drawString(margin_left, y_position, wrapped_line)
+                    current_margin_left = margin_left
+                    if wrapped_line.startswith("#"):
+                        # Heading line
+                        y_position -= 10
+                        wrapped_line = wrapped_line.replace("#", "").strip()
+                        c.setFont("Helvetica-Bold", 14)
+                        c.drawString(current_margin_left, y_position, wrapped_line)
+                    elif '**' in wrapped_line:
+                        # Subheading line
+                        parts = wrapped_line.split('**')
+                        for i,part in enumerate(parts):
+                            if i % 2 == 1:  # Odd indices represent the bold text
+                                c.setFont("Helvetica-Bold", 12)
+                            else:
+                                c.setFont("Helvetica", 12)
+                            c.drawString(current_margin_left, y_position, part.strip())
+                            current_margin_left += c.stringWidth(part.strip())       
+                    else:
+                        # Normal text
+                        c.setFont("Helvetica", 12)
+                        c.drawString(current_margin_left, y_position, wrapped_line)
+                    y_position -= 20  # Adjust line spacing for better readability
 
             # Add a line separator between reports
             # y_position -= 5
@@ -317,7 +338,7 @@ async def print_report(patient_id,isInvestigation=False):
             # Draw the entry number
             c.setFont("Helvetica", 12)
             c.line(margin_left, height - margin_top - 0.3 * inch, width - margin_right, height - margin_top - 0.3 * inch)
-            c.drawString(margin_left, height - margin_top - 0.7 * inch, f"Patient id: {patient_id}")
+            c.drawString(margin_left, height - margin_top - 0.7 * inch, f"Patient Id: {patient_id}")
             c.drawString(margin_left, height - margin_top - 1* inch, f"Entry Number: {entry}")
             # Print the report content
             y_position = height - margin_top - 1.4*inch
@@ -331,7 +352,6 @@ async def print_report(patient_id,isInvestigation=False):
                     wrapped_lines.append(line[:80])
                     line = line[80:]
                 wrapped_lines.append(line)
-                
                 for wrapped_line in wrapped_lines:
                     if y_position < margin_bottom:  # Avoid printing too close to the bottom
                         c.showPage()
@@ -349,14 +369,53 @@ async def print_report(patient_id,isInvestigation=False):
                         c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Mumbai")
                         # c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
                         c.setFont("Helvetica", 12)
-                    c.drawString(margin_left, y_position, wrapped_line)
-                    y_position -= 15  # Adjust line spacing for better readability
+                    #Old code without bold
+                    #c.drawString(margin_left, y_position, wrapped_line)
+                    
+                    #New code with bold
+                    # Check for bold markers and apply bold formatting
+                    current_margin_left = margin_left
+                    # if '**' in wrapped_line:
+                    #     parts = wrapped_line.split('**')
+                    #     for i, part in enumerate(parts):
+                    #         if i % 2 == 1:  # Odd indices represent the bold text
+                    #             c.setFont("Helvetica-Bold", 12)
+                    #         else:
+                    #             c.setFont("Helvetica", 12)
+                    #         c.drawString(current_margin_left, y_position, part.strip())
+                    #         current_margin_left += c.stringWidth(part.strip())  # Adjust position based on the width of the printed text
+                    # else:
+                    #     c.setFont("Helvetica", 12)
+                    #     c.drawString(current_margin_left, y_position, wrapped_line)
+                     # Apply different styles based on heading markers
+                    if wrapped_line.startswith("#"):
+                        # Heading line
+                        y_position -= 10
+                        wrapped_line = wrapped_line.replace("#", "").strip()
+                        c.setFont("Helvetica-Bold", 14)
+                        c.drawString(current_margin_left, y_position, wrapped_line)
+                    elif '**' in wrapped_line:
+                        # Subheading line
+                        parts = wrapped_line.split('**')
+                        for i,part in enumerate(parts):
+                            if i % 2 == 1:  # Odd indices represent the bold text
+                                c.setFont("Helvetica-Bold", 12)
+                            else:
+                                c.setFont("Helvetica", 12)
+                            c.drawString(current_margin_left, y_position, part.strip())
+                            current_margin_left += c.stringWidth(part.strip())       
+                    else:
+                        # Normal text
+                        c.setFont("Helvetica", 12)
+                        c.drawString(current_margin_left, y_position, wrapped_line)
+                        
+                    y_position -= 20  # Adjust line spacing for better readability
 
             # Add a line separator between reports
             # y_position -= 5
             # c.line(margin_left, y_position, width - margin_right, y_position)
             c.line(margin_left, margin_bottom, width - margin_right, margin_bottom)
-            y_position -= 25  # Additional spacing before the next entry
+            y_position -= 30  # Additional spacing before the next entry
 
             # Draw the footer
             c.setFont("Helvetica", 8)
@@ -388,22 +447,98 @@ def search_key_in_json(json_obj, search_term):
     
     return recursive_search(json_obj)
 
+def delete_key_from_json(data, key_to_delete):
+    key_to_delete_lower = key_to_delete.lower()
+
+    # Helper function to search and delete the key
+    def recursive_delete(d):
+        if isinstance(d, dict):
+            keys_to_delete = [key for key in d.keys() if key.lower() == key_to_delete_lower]
+            for key in keys_to_delete:
+                del d[key]
+            for key, value in d.items():
+                recursive_delete(value)
+        elif isinstance(d, list):
+            for item in d:
+                recursive_delete(item)
+    
+    # Make a copy of the data to avoid modifying the original object
+    data_copy = data.copy()
+    recursive_delete(data_copy)
+    
+    return data_copy
+
+# def json_to_formatted_string(json_obj):
+#     def parse_dict(d, level=0):
+#         lines = []
+#         for key, value in d.items():
+#             if isinstance(value, dict):
+#                 lines.append(f"{' ' * (level * 2)}{key}:")
+#                 lines.extend(parse_dict(value, level + 1))
+#             elif isinstance(value, list):
+#                 lines.append(f"{' ' * (level * 2)}{key}:")
+#                 for item in value:
+#                     if isinstance(item, dict):
+#                         lines.extend(parse_dict(item, level + 1))
+#                     else:
+#                         lines.append(f"{' ' * ((level + 1) * 2)}- {item}")
+#             else:
+#                 lines.append(f"{' ' * (level * 2)}- {key}: {value}")
+#         return lines
+    
+#     formatted_string = "\n".join(parse_dict(json_obj))
+#     return formatted_string
+
+# def json_to_formatted_string(json_obj):
+#     def parse_dict(d, level=0):
+#         lines = []
+#         for key, value in d.items():
+#             if isinstance(value, dict):
+#                 lines.append(f"{' ' * (level * 2)}**{key}**:")  # Mark key for bold
+#                 lines.extend(parse_dict(value, level + 1))
+#             elif isinstance(value, list):
+#                 lines.append(f"{' ' * (level * 2)}**{key}**:")  # Mark key for bold
+#                 for item in value:
+#                     if isinstance(item, dict):
+#                         lines.extend(parse_dict(item, level + 1))
+#                     else:
+#                         lines.append(f"{' ' * ((level + 1) * 2)}- {item}")
+#             else:
+#                 lines.append(f"{' ' * (level * 2)}- **{key}**: {value}")  # Mark key for bold
+#         return lines
+    
+#     formatted_string = "\n".join(parse_dict(json_obj))
+#     return formatted_string
+
 def json_to_formatted_string(json_obj):
     def parse_dict(d, level=0):
         lines = []
         for key, value in d.items():
             if isinstance(value, dict):
-                lines.append(f"{' ' * (level * 2)}{key}:")
+                # Mark heading for top-level keys, and subheading for nested keys
+                if level == 0:
+                    lines.append(f"{' ' * (level * 2)}#{key}# :")  # Mark heading key with #
+                else:
+                    lines.append(f"{' ' * (level * 2)}**{key}**:")  # Mark subheading key with *
+                
                 lines.extend(parse_dict(value, level + 1))
             elif isinstance(value, list):
-                lines.append(f"{' ' * (level * 2)}{key}:")
+                if level == 0:
+                    lines.append(f"{' ' * (level * 2)}#{key}#:")  # Mark heading key with #
+                else:
+                    lines.append(f"{' ' * (level * 2)}**{key}**:")  # Mark subheading key with *
+                
                 for item in value:
                     if isinstance(item, dict):
                         lines.extend(parse_dict(item, level + 1))
                     else:
                         lines.append(f"{' ' * ((level + 1) * 2)}- {item}")
             else:
-                lines.append(f"{' ' * (level * 2)}- {key}: {value}")
+                # Mark leaf nodes (key-value pairs)
+                if level == 0:
+                    lines.append(f"{' ' * (level * 2)}- #{key}#: {value}")  # Heading for level 0
+                else:
+                    lines.append(f"{' ' * (level * 2)}- **{key}**: {value}")  # Subheading for nested keys
         return lines
     
     formatted_string = "\n".join(parse_dict(json_obj))
@@ -456,9 +591,20 @@ You must strictly include only those Headings/Subheadings whose information is g
 
 Heading: Demographics
 
-Subheadings:
+Subheading:
 Facility/Location: Where the study was performed.
-Patient Information: Include Patient Id, Name, Age or Date of Birth, and Gender.
+
+Heading: Patient Information
+
+Subheadings:
+Patient Id: Patient Id assigned to the patient
+Name: Name of the patient
+Age or Date of Birth: Write Age of the patient or Date of Birth of patient, whichever is provided.
+Gender: Gender of the patient
+
+Heading: Examination details
+
+Subheadings:
 Referring Physician: Name(s) of the referring physician(s) or other healthcare provider(s). Indicate if the patient is self-referred.
 Examination Type: Name or type of examination performed.
 Examination Date: The date when the examination took place.
@@ -515,10 +661,10 @@ You must strictly  follow "Rules for Report Generation" for generating the repor
 ##Rules for Report Generation##
 1.	You must only use the information provided in the unstructured report by the radiologist. You must not infer or add details.
 2.	You must only include headings and subheadings relevant to the provided information. You must not mention information regarding a heading or subheading if it isn't provided in the unstructured report by the radiologist.
-3. If any headings( except 'Demographics') or any of their subheadings have empty fields, then you must not mention them in the final output.
-3.	You must not use placeholders such as “N/A” , “Not Specified.”, "Not Provided", etc.
-4.	You must ensure that the report is free of unnecessary jargon, especially in the impression, to make it accessible to all healthcare providers.
-5.	You must present the information in a logical and chronological order where applicable.
+3. If any headings( except 'Demographics','Patient Information' or 'Examination details') or any of their subheadings have empty fields, then you must not mention them in the final output.
+4. If subheadings for any of the following headings: Demographics','Patient Information' or 'Examination details' , don't have any content provided, you must leave the space empty in front of the subheadings.
+5.	You must ensure that the report is free of unnecessary jargon, especially in the impression, to make it accessible to all healthcare providers.
+6.	You must present the information in a logical and chronological order where applicable.
 
 Here is the unstructured report of the radiologist:
     {query}\n'''
@@ -530,11 +676,11 @@ Here is the unstructured report of the radiologist:
         result=search_key_in_json(report_json,'patient Id')
         if not result:
             patient_id_exists=False
-            patient_info = report_json['Demographics']['Patient Information']
+            patient_info = report_json['Patient Information']
             new_patient_info = {'Patient Id': ''}  # You can replace '12345' with the actual patient id
             new_patient_info.update(patient_info)
             # Update the original dictionary
-            report_json['Demographics']['Patient Information'] = new_patient_info
+            report_json['Patient Information'] = new_patient_info
             json.dumps(report_json, indent=4)
             
             
@@ -729,6 +875,10 @@ async def save_request(request: Request):
     print('patient id gpt',patient_id)
     report=output['Report']
     print('report json gpt',report)
+    #Remove Patient Id field from inside the report
+    # if 'Patient Id' in report['Patient Information']:
+    #     del report['Patient Information']['Patient Id']
+    delete_key_from_json(report,'Patient Id')
     entry=1
     entry_investigation=1
     
