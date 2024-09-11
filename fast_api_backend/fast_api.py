@@ -16,6 +16,8 @@ from openai import OpenAI
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
 from fastapi.middleware.cors import CORSMiddleware
 from pdf2image import convert_from_bytes
 import pytesseract
@@ -154,9 +156,14 @@ async def get_patient_record_count(patient_id,isInvestigation=False):
             return patient_record['record_count']
         else:
             return 0
+
+# Register the Unicode font (supports both English and Hindi)
+def register_fonts():
+    pdfmetrics.registerFont(TTFont('NotoSans', r'C:\Users\swapnil\OneDrive\Documents\ehr_on_github\smart_ehr\fast_api_backend\Noto_Sans\static\NotoSans_Condensed-Regular.ttf'))  # Path to the Unicode font
+    pdfmetrics.registerFont(TTFont('NotoSans-Bold', r'C:\Users\swapnil\OneDrive\Documents\ehr_on_github\smart_ehr\fast_api_backend\Noto_Sans\static\NotoSans_Condensed-Bold.ttf'))  # Bold font
     
 async def print_report(patient_id,isInvestigation=False):
-    
+    register_fonts()  # Register the font at the start
     if isInvestigation:
         #Investigation
         # Retrieve all reports for the given patient_id
@@ -203,22 +210,22 @@ async def print_report(patient_id,isInvestigation=False):
                 c.drawImage(HEADER_IMAGE, margin_left, height - margin_top -3*inch, width=1*inch, preserveAspectRatio=True, mask='auto')
             except Exception as e:
                 print(f"Error loading image: {e}")
-            c.setFont("Helvetica-Bold", 14)
+            c.setFont("NotoSans-Bold", 14)
             #c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Your Report Header Text")
             c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.5 * inch, "Arista Surge Medical Center")
-            c.setFont("Helvetica", 12)
+            c.setFont("NotoSans", 12)
             c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Mumbai")
             # c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
 
             # Draw the entry number
-            c.setFont("Helvetica", 12)
+            c.setFont("NotoSans", 12)
             c.line(margin_left, height - margin_top - 0.3 * inch, width - margin_right, height - margin_top - 0.3 * inch)
             c.drawString(margin_left, height - margin_top - 0.7 * inch, f"Patient Id: {patient_id}")
             c.drawString(margin_left, height - margin_top - 1* inch, f"Entry Number: {entry}")
             # Print the report content
             y_position = height - margin_top - 1.4*inch
             text_lines = report.split('\n')
-            c.setFont("Helvetica", 12)
+            c.setFont("NotoSans", 12)
             
             for line in text_lines:
                 # Ensure the text wraps if it's too long
@@ -238,34 +245,34 @@ async def print_report(patient_id,isInvestigation=False):
                             c.drawImage(HEADER_IMAGE, margin_left, height - margin_top -3*inch, width=1*inch, preserveAspectRatio=True, mask='auto')
                         except Exception as e:
                             print(f"Error loading image: {e}")
-                        c.setFont("Helvetica-Bold", 14)
+                        c.setFont("NotoSans-Bold", 14)
                         #c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Your Report Header Text")
                         c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.5 * inch, "Arista Surge Medical Center")
-                        c.setFont("Helvetica", 12)
+                        c.setFont("NotoSans", 12)
                         c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Mumbai")
                         # c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
-                        c.setFont("Helvetica", 12)
+                        c.setFont("NotoSans", 12)
                     #c.drawString(margin_left, y_position, wrapped_line)
                     current_margin_left = margin_left
                     if wrapped_line.startswith("#"):
                         # Heading line
                         y_position -= 10
                         wrapped_line = wrapped_line.replace("#", "").strip()
-                        c.setFont("Helvetica-Bold", 14)
+                        c.setFont("NotoSans-Bold", 14)
                         c.drawString(current_margin_left, y_position, wrapped_line)
                     elif '**' in wrapped_line:
                         # Subheading line
                         parts = wrapped_line.split('**')
                         for i,part in enumerate(parts):
                             if i % 2 == 1:  # Odd indices represent the bold text
-                                c.setFont("Helvetica-Bold", 12)
+                                c.setFont("NotoSans-Bold", 12)
                             else:
-                                c.setFont("Helvetica", 12)
+                                c.setFont("NotoSans", 12)
                             c.drawString(current_margin_left, y_position, part.strip())
                             current_margin_left += c.stringWidth(part.strip())       
                     else:
                         # Normal text
-                        c.setFont("Helvetica", 12)
+                        c.setFont("NotoSans", 12)
                         c.drawString(current_margin_left, y_position, wrapped_line)
                     y_position -= 20  # Adjust line spacing for better readability
 
@@ -276,7 +283,7 @@ async def print_report(patient_id,isInvestigation=False):
             y_position -= 25  # Additional spacing before the next entry
 
             # Draw the footer
-            c.setFont("Helvetica", 8)
+            c.setFont("NotoSans", 8)
             c.drawString(margin_left, margin_bottom / 2, f"Page {c.getPageNumber()} - Confidential")
 
         c.save()
@@ -328,22 +335,22 @@ async def print_report(patient_id,isInvestigation=False):
                 c.drawImage(HEADER_IMAGE, margin_left, height - margin_top -3*inch, width=1*inch, preserveAspectRatio=True, mask='auto')
             except Exception as e:
                 print(f"Error loading image: {e}")
-            c.setFont("Helvetica-Bold", 14)
+            c.setFont("NotoSans-Bold", 14)
             #c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Your Report Header Text")
             c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.5 * inch, "Arista Surge Medical Center")
-            c.setFont("Helvetica", 12)
+            c.setFont("NotoSans", 12)
             c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Mumbai")
             # c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
 
             # Draw the entry number
-            c.setFont("Helvetica", 12)
+            c.setFont("NotoSans", 12)
             c.line(margin_left, height - margin_top - 0.3 * inch, width - margin_right, height - margin_top - 0.3 * inch)
             c.drawString(margin_left, height - margin_top - 0.7 * inch, f"Patient Id: {patient_id}")
             c.drawString(margin_left, height - margin_top - 1* inch, f"Entry Number: {entry}")
             # Print the report content
             y_position = height - margin_top - 1.4*inch
             text_lines = report.split('\n')
-            c.setFont("Helvetica", 12)
+            c.setFont("NotoSans", 12)
             
             for line in text_lines:
                 # Ensure the text wraps if it's too long
@@ -362,13 +369,13 @@ async def print_report(patient_id,isInvestigation=False):
                             c.drawImage(HEADER_IMAGE, margin_left, height - margin_top -3*inch, width=1*inch, preserveAspectRatio=True, mask='auto')
                         except Exception as e:
                             print(f"Error loading image: {e}")
-                        c.setFont("Helvetica-Bold", 14)
+                        c.setFont("NotoSans-Bold", 14)
                         #c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Your Report Header Text")
                         c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.5 * inch, "Arista Surge Medical Center")
-                        c.setFont("Helvetica", 12)
+                        c.setFont("NotoSans", 12)
                         c.drawString(margin_left + 2.1 * inch, height - margin_top + 0.2 * inch, "Mumbai")
                         # c.drawString(margin_left + 2.1 * inch, height - margin_top, "Phone: (123) 456-7890")
-                        c.setFont("Helvetica", 12)
+                        c.setFont("NotoSans", 12)
                     #Old code without bold
                     #c.drawString(margin_left, y_position, wrapped_line)
                     
@@ -392,21 +399,21 @@ async def print_report(patient_id,isInvestigation=False):
                         # Heading line
                         y_position -= 10
                         wrapped_line = wrapped_line.replace("#", "").strip()
-                        c.setFont("Helvetica-Bold", 14)
+                        c.setFont("NotoSans-Bold", 14)
                         c.drawString(current_margin_left, y_position, wrapped_line)
                     elif '**' in wrapped_line:
                         # Subheading line
                         parts = wrapped_line.split('**')
                         for i,part in enumerate(parts):
                             if i % 2 == 1:  # Odd indices represent the bold text
-                                c.setFont("Helvetica-Bold", 12)
+                                c.setFont("NotoSans-Bold", 12)
                             else:
-                                c.setFont("Helvetica", 12)
+                                c.setFont("NotoSans", 12)
                             c.drawString(current_margin_left, y_position, part.strip())
                             current_margin_left += c.stringWidth(part.strip())       
                     else:
                         # Normal text
-                        c.setFont("Helvetica", 12)
+                        c.setFont("NotoSans", 12)
                         c.drawString(current_margin_left, y_position, wrapped_line)
                         
                     y_position -= 20  # Adjust line spacing for better readability
@@ -418,7 +425,7 @@ async def print_report(patient_id,isInvestigation=False):
             y_position -= 30  # Additional spacing before the next entry
 
             # Draw the footer
-            c.setFont("Helvetica", 8)
+            c.setFont("NotoSans", 8)
             c.drawString(margin_left, margin_bottom / 2, f"Page {c.getPageNumber()} - Confidential")
 
         c.save()
