@@ -589,6 +589,21 @@ async def task_on_EHR(reports,datetime_now,task):
     #print(output)
     return output
 
+
+async def get_latest_patient_id():
+    latest_patient = await patient_id_name_collection.find_one(sort=[("_id", -1)])  # Sort by _id descending
+    if latest_patient:
+        current_id = latest_patient.get("patient_id")
+        # Increment the numeric part of the ID
+        new_id = int(current_id) + 1
+        # Convert back to zero-padded string, keeping the same length as the original
+        new_id_str = str(new_id).zfill(len(current_id))  # Zero pad to the same length
+        return new_id_str
+    else:
+        new_id_str='000001'
+        return new_id_str
+    
+    
 async def extract_intent_and_content(query:str,intent:str):
     if intent.lower() == 'create':
         create_prompt=f'''You are an AI radiology assistant designed to convert a radiologist’s unstructured report into a well-structured, professional radiology report. The report must adhere strictly to ACR guidelines and be formatted clearly, with appropriate headings and subheadings. Your task is to identify the relevant information, and organize it into a structured format as given under "Radiology Report Structure".
@@ -684,8 +699,10 @@ Here is the unstructured report of the radiologist:
         if not result:
             patient_id_exists=False
             patient_info = report_json['Patient Information']
-            new_patient_info = {'Patient Id': ''}  # You can replace '12345' with the actual patient id
-            new_patient_info.update(patient_info)
+            new_patient_id=await get_latest_patient_id()
+            print('new_patient_id',new_patient_id)
+            new_patient_info = {'Patient Id': new_patient_id}  # Replace the patient id with the incremented patient id
+            new_patient_info.update({k: v for k, v in patient_info.items() if k != 'Patient Id'})
             # Update the original dictionary
             report_json['Patient Information'] = new_patient_info
             json.dumps(report_json, indent=4)
