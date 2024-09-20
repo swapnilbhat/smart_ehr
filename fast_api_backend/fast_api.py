@@ -22,6 +22,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from pdf2image import convert_from_bytes
 import pytesseract
 import io
+from docx import Document
+from docx.shared import Pt, Inches
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT  # Import vertical and table alignments
+from docx.shared import RGBColor
+from PIL import Image
 
 app = FastAPI()
 
@@ -438,6 +444,137 @@ async def print_report(patient_id,isInvestigation=False):
 #         return {"message": f"Report for patient_id {patient_id.patient_id} has been printed successfully."}
 #     except Exception as e:
 #         raise HTTPException(status_code=500, detail=str(e))
+@app.get("/print_word_report/")
+async def print_word_report(patient_id: str):
+    records = await ehr_collection.find({'patient_id': patient_id}).sort('entry').to_list(None)
+    
+    # Check if records exist
+    if not records:
+        print(f'No records found for patient_id: {patient_id}')
+        raise HTTPException(status_code=404, detail="No records found for this patient ID")
+    
+    print('found records')
+    doc = Document()
+    def set_margins(doc, left=1, right=0.5, top=1.0, bottom=1.0):
+        """
+        Sets the page margins for the document.
+        """
+        sections = doc.sections
+        for section in sections:
+            section.left_margin = Inches(left)
+            section.right_margin = Inches(right)
+            section.top_margin = Inches(top)
+            section.bottom_margin = Inches(bottom)
+    set_margins(doc, left=1, right=0.5, top=1.0, bottom=1.0)  # Adjust margins here
+    
+    # Set document styles
+    style = doc.styles['Normal']
+    font = style.font
+    font.name = 'Noto Sans'
+    font.size = Pt(12)
+
+    HEADER_IMAGE = './aristalogo.png'
+    
+    def add_header(doc):
+        try:
+            # Resize the image if necessary before adding it
+            img = Image.open(HEADER_IMAGE)
+            img.thumbnail((Inches(1), Inches(1)))  # Adjust the image size
+            img.save(HEADER_IMAGE)
+        except Exception as e:
+            print(f"Error loading image: {e}")
+        
+        # Create a table with one row and two columns
+        table = doc.add_table(rows=1, cols=2)
+
+        # Add the image to the left cell
+        cell_image = table.cell(0, 0)
+        cell_image.width = Inches(1.5)
+        paragraph_image = cell_image.paragraphs[0]
+        run_image = paragraph_image.add_run()
+        run_image.add_picture(HEADER_IMAGE, width=Inches(1.5))  # Adjust width as needed
+
+        # Add the clinic name and address to the right cell
+        cell_text = table.cell(0, 1)
+        cell_text.width = Inches(5)
+        cell_text_paragraph = cell_text.paragraphs[0]
+        
+        # Add clinic name (Heading 1)
+        run_name = cell_text_paragraph.add_run("Arista Surge Medical Center")
+        run_name.bold = True
+        run_name.font.size = Pt(16)
+        
+        # Add address (Normal text)
+        cell_text_paragraph.add_run("\nMumbai").font.size = Pt(12)
+
+        # Set the alignment for text (centered vertically)
+        table.autofit = False
+        for cell in table.columns[1].cells:
+            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        table.alignment = WD_TABLE_ALIGNMENT.CENTER
+
+        # Add a horizontal line below the header
+        #doc.add_paragraph().add_run().add_break()
+        para = doc.add_paragraph()
+        para.add_run("_" * 100)  # This creates a horizontal line stretching across the page
+        
+
+    first_entry = True
+    
+    # Iterate through each record
+    for record in records:
+        if not first_entry:
+            doc.add_page_break()  # Add a page break between entries
+        
+        add_header(doc)  # Add header to each page
+        
+        entry = record['entry']
+        report = record['report']
+        print('print report', report)
+        
+        # Remove Datetime key and object
+        if 'Datetime' in report['Record Entry']:
+            del report['Record Entry']['Datetime']
+        
+        print('print report mod', report)
+        # Add Patient ID and Entry Number
+        doc.add_paragraph(f"Patient Id: {patient_id}")
+        doc.add_paragraph(f"Entry Number: {entry}")
+        
+        # Format the report content
+        report_text = json_to_formatted_string(report)
+        text_lines = report_text.split('\n')
+        
+        for line in text_lines:
+            if line.startswith("#"):
+                # Heading
+                line = line.replace("#", "").strip()
+                doc.add_paragraph(line, style='Heading 2')
+            elif '**' in line:
+                # Bold for text enclosed by ** (subheading)
+                parts = line.split('**')
+                para = doc.add_paragraph()
+                for i, part in enumerate(parts):
+                    if i % 2 == 1:
+                        run = para.add_run(part)
+                        run.bold = True
+                    else:
+                        para.add_run(part)
+            else:
+                # Normal text
+                doc.add_paragraph(line)
+        
+        # Add a line separator between reports
+        doc.add_paragraph('-' * 40)
+        
+        first_entry = False  # Disable the first entry flag after the first iteration
+    
+    # Save the document
+    word_file = f'{REPORTS_DIR}{patient_id}_report.docx'
+    doc.save(word_file)
+    print(f'Report for patient_id {patient_id} has been saved to {word_file}')
+    
+    return {'message': f"Report saved successfully for patient_id {patient_id}", 'file_path': word_file}
     
 def search_key_in_json(json_obj, search_term):
     search_term = search_term.lower()
@@ -475,47 +612,6 @@ def delete_key_from_json(data, key_to_delete):
     
     return data_copy
 
-# def json_to_formatted_string(json_obj):
-#     def parse_dict(d, level=0):
-#         lines = []
-#         for key, value in d.items():
-#             if isinstance(value, dict):
-#                 lines.append(f"{' ' * (level * 2)}{key}:")
-#                 lines.extend(parse_dict(value, level + 1))
-#             elif isinstance(value, list):
-#                 lines.append(f"{' ' * (level * 2)}{key}:")
-#                 for item in value:
-#                     if isinstance(item, dict):
-#                         lines.extend(parse_dict(item, level + 1))
-#                     else:
-#                         lines.append(f"{' ' * ((level + 1) * 2)}- {item}")
-#             else:
-#                 lines.append(f"{' ' * (level * 2)}- {key}: {value}")
-#         return lines
-    
-#     formatted_string = "\n".join(parse_dict(json_obj))
-#     return formatted_string
-
-# def json_to_formatted_string(json_obj):
-#     def parse_dict(d, level=0):
-#         lines = []
-#         for key, value in d.items():
-#             if isinstance(value, dict):
-#                 lines.append(f"{' ' * (level * 2)}**{key}**:")  # Mark key for bold
-#                 lines.extend(parse_dict(value, level + 1))
-#             elif isinstance(value, list):
-#                 lines.append(f"{' ' * (level * 2)}**{key}**:")  # Mark key for bold
-#                 for item in value:
-#                     if isinstance(item, dict):
-#                         lines.extend(parse_dict(item, level + 1))
-#                     else:
-#                         lines.append(f"{' ' * ((level + 1) * 2)}- {item}")
-#             else:
-#                 lines.append(f"{' ' * (level * 2)}- **{key}**: {value}")  # Mark key for bold
-#         return lines
-    
-#     formatted_string = "\n".join(parse_dict(json_obj))
-#     return formatted_string
 
 def json_to_formatted_string(json_obj):
     def parse_dict(d, level=0):
