@@ -28,6 +28,7 @@ from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT  # Import vertical and table alignments
 from docx.shared import RGBColor
 from PIL import Image
+from pypandoc import convert_file
 
 app = FastAPI()
 
@@ -437,144 +438,269 @@ async def print_report(patient_id,isInvestigation=False):
         c.save()
         print(f'Report for patient_id {patient_id} has been saved to {pdf_file}')
 
-# @app.post("/print-report/")
-# async def print_report_endpoint(patient_id: PatientID):
-#     try:
-#         await print_report(patient_id.patient_id)
-#         return {"message": f"Report for patient_id {patient_id.patient_id} has been printed successfully."}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-@app.get("/print_word_report/")
-async def print_word_report(patient_id: str):
-    records = await ehr_collection.find({'patient_id': patient_id}).sort('entry').to_list(None)
-    
-    # Check if records exist
-    if not records:
-        print(f'No records found for patient_id: {patient_id}')
-        raise HTTPException(status_code=404, detail="No records found for this patient ID")
-    
-    print('found records')
-    doc = Document()
-    def set_margins(doc, left=1, right=0.5, top=1.0, bottom=1.0):
-        """
-        Sets the page margins for the document.
-        """
-        sections = doc.sections
-        for section in sections:
-            section.left_margin = Inches(left)
-            section.right_margin = Inches(right)
-            section.top_margin = Inches(top)
-            section.bottom_margin = Inches(bottom)
-    set_margins(doc, left=1, right=0.5, top=1.0, bottom=1.0)  # Adjust margins here
-    
-    # Set document styles
-    style = doc.styles['Normal']
-    font = style.font
-    font.name = 'Noto Sans'
-    font.size = Pt(12)
 
-    HEADER_IMAGE = './aristalogo.png'
-    
-    def add_header(doc):
-        try:
-            # Resize the image if necessary before adding it
-            img = Image.open(HEADER_IMAGE)
-            img.thumbnail((Inches(1), Inches(1)))  # Adjust the image size
-            img.save(HEADER_IMAGE)
-        except Exception as e:
-            print(f"Error loading image: {e}")
+# @app.get("/print_word_report/")
+# async def print_word_report(patient_id: str): #patient_id,isInvestigation=False
+async def print_word_report(patient_id,isInvestigation=False):
+    if isInvestigation:
+        records = await investigation_collection.find({'patient_id': patient_id}).sort('entry').to_list(None)
         
-        # Create a table with one row and two columns
-        table = doc.add_table(rows=1, cols=2)
+        # Check if records exist
+        if not records:
+            print(f'No records found for patient_id: {patient_id}')
+            raise HTTPException(status_code=404, detail="No records found for this patient ID")
+        
+        print('found records')
+        doc = Document()
+        def set_margins(doc, left=1, right=0.5, top=1.0, bottom=1.0):
+            """
+            Sets the page margins for the document.
+            """
+            sections = doc.sections
+            for section in sections:
+                section.left_margin = Inches(left)
+                section.right_margin = Inches(right)
+                section.top_margin = Inches(top)
+                section.bottom_margin = Inches(bottom)
+        set_margins(doc, left=1, right=0.5, top=1.0, bottom=1.0)  # Adjust margins here
+        
+        # Set document styles
+        style = doc.styles['Normal']
+        font = style.font
+        font.name = 'Noto Sans'
+        font.size = Pt(12)
 
-        # Add the image to the left cell
-        cell_image = table.cell(0, 0)
-        cell_image.width = Inches(1.5)
-        paragraph_image = cell_image.paragraphs[0]
-        run_image = paragraph_image.add_run()
-        run_image.add_picture(HEADER_IMAGE, width=Inches(1.5))  # Adjust width as needed
+        HEADER_IMAGE = './aristalogo.png'
+        
+        def add_header(doc):
+            try:
+                # Resize the image if necessary before adding it
+                img = Image.open(HEADER_IMAGE)
+                img.thumbnail((Inches(1), Inches(1)))  # Adjust the image size
+                img.save(HEADER_IMAGE)
+            except Exception as e:
+                print(f"Error loading image: {e}")
+            
+            # Create a table with one row and two columns
+            table = doc.add_table(rows=1, cols=2)
 
-        # Add the clinic name and address to the right cell
-        cell_text = table.cell(0, 1)
-        cell_text.width = Inches(5)
-        cell_text_paragraph = cell_text.paragraphs[0]
-        
-        # Add clinic name (Heading 1)
-        run_name = cell_text_paragraph.add_run("Arista Surge Medical Center")
-        run_name.bold = True
-        run_name.font.size = Pt(16)
-        
-        # Add address (Normal text)
-        cell_text_paragraph.add_run("\nMumbai").font.size = Pt(12)
+            # Add the image to the left cell
+            cell_image = table.cell(0, 0)
+            cell_image.width = Inches(1.5)
+            paragraph_image = cell_image.paragraphs[0]
+            run_image = paragraph_image.add_run()
+            run_image.add_picture(HEADER_IMAGE, width=Inches(1.5))  # Adjust width as needed
 
-        # Set the alignment for text (centered vertically)
-        table.autofit = False
-        for cell in table.columns[1].cells:
-            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-        table.alignment = WD_TABLE_ALIGNMENT.CENTER
+            # Add the clinic name and address to the right cell
+            cell_text = table.cell(0, 1)
+            cell_text.width = Inches(5)
+            cell_text_paragraph = cell_text.paragraphs[0]
+            
+            # Add clinic name (Heading 1)
+            run_name = cell_text_paragraph.add_run("Arista Surge Medical Center")
+            run_name.bold = True
+            run_name.font.size = Pt(16)
+            
+            # Add address (Normal text)
+            cell_text_paragraph.add_run("\nMumbai").font.size = Pt(12)
 
-        # Add a horizontal line below the header
-        #doc.add_paragraph().add_run().add_break()
-        para = doc.add_paragraph()
-        para.add_run("_" * 100)  # This creates a horizontal line stretching across the page
-        
+            # Set the alignment for text (centered vertically)
+            table.autofit = False
+            for cell in table.columns[1].cells:
+                cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+            table.alignment = WD_TABLE_ALIGNMENT.CENTER
 
-    first_entry = True
-    
-    # Iterate through each record
-    for record in records:
-        if not first_entry:
-            doc.add_page_break()  # Add a page break between entries
+            # Add a horizontal line below the header
+            #doc.add_paragraph().add_run().add_break()
+            para = doc.add_paragraph()
+            para.add_run("_" * 100)  # This creates a horizontal line stretching across the page
+            
+
+        first_entry = True
         
-        add_header(doc)  # Add header to each page
+        # Iterate through each record
+        for record in records:
+            if not first_entry:
+                doc.add_page_break()  # Add a page break between entries
+            
+            add_header(doc)  # Add header to each page
+            
+            entry = record['entry']
+            report = record['report']
+            print('print report', report)
+            
+            # Remove Datetime key and object
+            if 'Datetime' in report['Record Entry']:
+                del report['Record Entry']['Datetime']
+            
+            print('print report mod', report)
+            # Add Patient ID and Entry Number
+            doc.add_paragraph(f"Patient Id: {patient_id}")
+            doc.add_paragraph(f"Entry Number: {entry}")
+            
+            # Format the report content
+            report_text = json_to_formatted_string(report)
+            text_lines = report_text.split('\n')
+            
+            for line in text_lines:
+                if line.startswith("#"):
+                    # Heading
+                    line = line.replace("#", "").strip()
+                    doc.add_paragraph(line, style='Heading 2')
+                elif '**' in line:
+                    # Bold for text enclosed by ** (subheading)
+                    parts = line.split('**')
+                    para = doc.add_paragraph()
+                    for i, part in enumerate(parts):
+                        if i % 2 == 1:
+                            run = para.add_run(part)
+                            run.bold = True
+                        else:
+                            para.add_run(part)
+                else:
+                    # Normal text
+                    doc.add_paragraph(line)
+            
+            # Add a line separator between reports
+            doc.add_paragraph('-' * 40)
+            
+            first_entry = False  # Disable the first entry flag after the first iteration
         
-        entry = record['entry']
-        report = record['report']
-        print('print report', report)
+        # Save the document
+        word_file = f'{REPORTS_DIR}{patient_id}_investigation.docx'
+        doc.save(word_file)
+        print(f'Investigation for patient_id {patient_id} has been saved to {word_file}')
         
-        # Remove Datetime key and object
-        if 'Datetime' in report['Record Entry']:
-            del report['Record Entry']['Datetime']
+    else:
+        records = await ehr_collection.find({'patient_id': patient_id}).sort('entry').to_list(None)
         
-        print('print report mod', report)
-        # Add Patient ID and Entry Number
-        doc.add_paragraph(f"Patient Id: {patient_id}")
-        doc.add_paragraph(f"Entry Number: {entry}")
+        # Check if records exist
+        if not records:
+            print(f'No records found for patient_id: {patient_id}')
+            raise HTTPException(status_code=404, detail="No records found for this patient ID")
         
-        # Format the report content
-        report_text = json_to_formatted_string(report)
-        text_lines = report_text.split('\n')
+        print('found records')
+        doc = Document()
+        def set_margins(doc, left=1, right=0.5, top=1.0, bottom=1.0):
+            """
+            Sets the page margins for the document.
+            """
+            sections = doc.sections
+            for section in sections:
+                section.left_margin = Inches(left)
+                section.right_margin = Inches(right)
+                section.top_margin = Inches(top)
+                section.bottom_margin = Inches(bottom)
+        set_margins(doc, left=1, right=0.5, top=1.0, bottom=1.0)  # Adjust margins here
         
-        for line in text_lines:
-            if line.startswith("#"):
-                # Heading
-                line = line.replace("#", "").strip()
-                doc.add_paragraph(line, style='Heading 2')
-            elif '**' in line:
-                # Bold for text enclosed by ** (subheading)
-                parts = line.split('**')
-                para = doc.add_paragraph()
-                for i, part in enumerate(parts):
-                    if i % 2 == 1:
-                        run = para.add_run(part)
-                        run.bold = True
-                    else:
-                        para.add_run(part)
-            else:
-                # Normal text
-                doc.add_paragraph(line)
+        # Set document styles
+        style = doc.styles['Normal']
+        font = style.font
+        font.name = 'Noto Sans'
+        font.size = Pt(12)
+
+        HEADER_IMAGE = './aristalogo.png'
         
-        # Add a line separator between reports
-        doc.add_paragraph('-' * 40)
+        def add_header(doc):
+            try:
+                # Resize the image if necessary before adding it
+                img = Image.open(HEADER_IMAGE)
+                img.thumbnail((Inches(1), Inches(1)))  # Adjust the image size
+                img.save(HEADER_IMAGE)
+            except Exception as e:
+                print(f"Error loading image: {e}")
+            
+            # Create a table with one row and two columns
+            table = doc.add_table(rows=1, cols=2)
+
+            # Add the image to the left cell
+            cell_image = table.cell(0, 0)
+            cell_image.width = Inches(1.5)
+            paragraph_image = cell_image.paragraphs[0]
+            run_image = paragraph_image.add_run()
+            run_image.add_picture(HEADER_IMAGE, width=Inches(1.5))  # Adjust width as needed
+
+            # Add the clinic name and address to the right cell
+            cell_text = table.cell(0, 1)
+            cell_text.width = Inches(5)
+            cell_text_paragraph = cell_text.paragraphs[0]
+            
+            # Add clinic name (Heading 1)
+            run_name = cell_text_paragraph.add_run("Arista Surge Medical Center")
+            run_name.bold = True
+            run_name.font.size = Pt(16)
+            
+            # Add address (Normal text)
+            cell_text_paragraph.add_run("\nMumbai").font.size = Pt(12)
+
+            # Set the alignment for text (centered vertically)
+            table.autofit = False
+            for cell in table.columns[1].cells:
+                cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+            table.alignment = WD_TABLE_ALIGNMENT.CENTER
+
+            # Add a horizontal line below the header
+            #doc.add_paragraph().add_run().add_break()
+            para = doc.add_paragraph()
+            para.add_run("_" * 100)  # This creates a horizontal line stretching across the page
+            
+
+        first_entry = True
         
-        first_entry = False  # Disable the first entry flag after the first iteration
-    
-    # Save the document
-    word_file = f'{REPORTS_DIR}{patient_id}_report.docx'
-    doc.save(word_file)
-    print(f'Report for patient_id {patient_id} has been saved to {word_file}')
-    
-    return {'message': f"Report saved successfully for patient_id {patient_id}", 'file_path': word_file}
+        # Iterate through each record
+        for record in records:
+            if not first_entry:
+                doc.add_page_break()  # Add a page break between entries
+            
+            add_header(doc)  # Add header to each page
+            
+            entry = record['entry']
+            report = record['report']
+            print('print report', report)
+            
+            # Remove Datetime key and object
+            if 'Datetime' in report['Record Entry']:
+                del report['Record Entry']['Datetime']
+            
+            print('print report mod', report)
+            # Add Patient ID and Entry Number
+            doc.add_paragraph(f"Patient Id: {patient_id}")
+            doc.add_paragraph(f"Entry Number: {entry}")
+            
+            # Format the report content
+            report_text = json_to_formatted_string(report)
+            text_lines = report_text.split('\n')
+            
+            for line in text_lines:
+                if line.startswith("#"):
+                    # Heading
+                    line = line.replace("#", "").strip()
+                    doc.add_paragraph(line, style='Heading 2')
+                elif '**' in line:
+                    # Bold for text enclosed by ** (subheading)
+                    parts = line.split('**')
+                    para = doc.add_paragraph()
+                    for i, part in enumerate(parts):
+                        if i % 2 == 1:
+                            run = para.add_run(part)
+                            run.bold = True
+                        else:
+                            para.add_run(part)
+                else:
+                    # Normal text
+                    doc.add_paragraph(line)
+            
+            # Add a line separator between reports
+            doc.add_paragraph('-' * 40)
+            
+            first_entry = False  # Disable the first entry flag after the first iteration
+        
+        # Save the document
+        word_file = f'{REPORTS_DIR}{patient_id}_report.docx'
+        doc.save(word_file)
+        print(f'Report for patient_id {patient_id} has been saved to {word_file}')
+        
+        #return {'message': f"Report saved successfully for patient_id {patient_id}", 'file_path': word_file}
     
 def search_key_in_json(json_obj, search_term):
     search_term = search_term.lower()
@@ -1020,12 +1146,12 @@ async def save_request(request: Request):
         print('patient id exists in records')
         if isInvestigation:
             updated_record=await add_record(entry_investigation,patient_id,report,isInvestigation=True)
-            await print_report(patient_id,isInvestigation=True)
+            await print_word_report(patient_id,isInvestigation=True)
             
         updated_record = await add_record(entry, patient_id, report)
         print(updated_record)
-        await print_report(patient_id)
-        return {'message':f' Existing Patient Report has been updated and saved at {patient_id}_report.pdf'}
+        await print_word_report(patient_id)
+        return {'message':f' Existing Patient Report has been updated and saved at {patient_id}_report.docx'}
     else:
         print('Patient id doens\'t exist in records, creating a new report if intent is create')
         print(intent)
@@ -1034,14 +1160,14 @@ async def save_request(request: Request):
             return {'message':'Patient id does not exist in the database'}
         if isInvestigation:
             updated_record=await add_record(entry_investigation,patient_id,report,isInvestigation=True)
-            await print_report(patient_id,isInvestigation=True)
+            await print_word_report(patient_id,isInvestigation=True)
             
         created_record = await add_record(entry, patient_id, report)
         print(created_record)
         
-        await print_report(patient_id)
+        await print_word_report(patient_id)
         
-        return {'message':f' A new Patient Report has been created and saved at {patient_id}_report.pdf'}
+        return {'message':f' A new Patient Report has been created and saved at {patient_id}_report.docx'}
 
 @app.get("/reports")
 async def list_reports():
@@ -1084,7 +1210,15 @@ async def list_reports():
 async def get_report(report_name: str):
     report_path = os.path.join(REPORTS_DIR, report_name)
     if os.path.exists(report_path):
-        return FileResponse(report_path, media_type='application/pdf', filename=report_name,headers={"Content-Disposition": "inline"})
+        if report_name.endswith(".docx"):
+            media_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        else:
+            # Handle PDF or other formats
+            media_type = 'application/pdf'
+        
+        return FileResponse(report_path, media_type=media_type, filename=report_name, headers={
+            "Content-Disposition": f"attachment; filename={report_name}"
+        })   
     else:
         return {"error": "Report not found"}
 
